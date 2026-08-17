@@ -1,0 +1,2184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>기업-전문가 거리 기반 자동 배정 시스템 — 레퍼런스 UI (IT)</title>
+  <meta name="description" content="위시켓 157617 · 기존 Java+Oracle 시스템에 DB 폴링 무접촉으로 연동하는 거리 기반 자동 배정 엔진 — IT 담당자용 기술 레퍼런스 UI" />
+  <meta property="og:title" content="기업-전문가 거리 기반 자동 배정 시스템 — 레퍼런스 UI (IT)" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://meleteyo.github.io/refui-157617/it.html" />
+
+  <!-- Tailwind CSS (CDN, JIT) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Pretendard Variable"', 'Pretendard', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'SF Mono', 'Menlo', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Pretendard (한글 최적화) + JetBrains Mono (숫자·코드) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Lucide icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Prism.js (코드 하이라이트) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+
+  <link rel="stylesheet" href="./styles.css" />
+
+  <style>
+    :root {
+      --project-id: 157617;
+      --accent-primary: 139 92 246;   /* 보라 — 엔진·핵심 */
+      --accent-success: 16 185 129;   /* 에메랄드 — 확정·성공 */
+      --accent-danger:  239 68 68;    /* 레드 — 리스크·차단 */
+      --accent-warn:    245 158 11;   /* 앰버 — 대기·편차 근접 */
+      --accent-info:    6 182 212;    /* 청록 — 아키텍처·정보 */
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
+      background: #020617;
+      color: #f1f5f9;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Aurora gradient mesh */
+    .aurora-bg {
+      position: fixed; inset: 0; z-index: -10;
+      background: #020617;
+    }
+    .aurora-bg::before {
+      content: ''; position: absolute; inset: 0; opacity: 0.4;
+      background:
+        radial-gradient(at 15% 25%, rgba(139,92,246,0.35), transparent 50%),
+        radial-gradient(at 85% 75%, rgba(16,185,129,0.25), transparent 50%),
+        radial-gradient(at 50% 50%, rgba(236,72,153,0.15), transparent 45%),
+        radial-gradient(at 10% 90%, rgba(34,211,238,0.12), transparent 40%);
+    }
+    /* Scroll-driven animations (modern browsers) */
+    @supports (animation-timeline: view()) {
+      .scroll-reveal {
+        animation: slideUp 0.8s ease-out;
+        animation-timeline: view();
+        animation-range: entry 0% cover 30%;
+      }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* 부하 히트맵 셀 */
+    .load-cell {
+      border-radius: 0.5rem;
+      padding: 0.375rem 0.25rem;
+      text-align: center;
+      font-size: 10px;
+      line-height: 1.3;
+      border: 1px solid rgba(255,255,255,0.08);
+      cursor: default;
+      transition: transform 0.15s ease-out;
+    }
+    .load-cell:hover { transform: scale(1.06); }
+    .load-ok   { background: rgba(16,185,129,0.14); color: #6ee7b7; }
+    .load-near { background: rgba(245,158,11,0.16); color: #fcd34d; }
+    .load-over { background: rgba(239,68,68,0.18);  color: #fca5a5; }
+    .load-off  { background: rgba(100,116,139,0.15); color: #94a3b8; text-decoration: line-through; }
+    /* 파이프라인 스테퍼 */
+    .pipe-step { position: relative; }
+    .pipe-step + .pipe-step::before {
+      content: '';
+      position: absolute; left: -0.875rem; top: 2rem;
+      width: 0.75rem; height: 2px;
+      background: linear-gradient(90deg, rgba(139,92,246,0.6), rgba(16,185,129,0.6));
+    }
+    @media (max-width: 1024px) {
+      .pipe-step + .pipe-step::before { display: none; }
+    }
+    /* A/B 해석 토글 */
+    .ab-btn[aria-pressed="true"] {
+      background: rgba(139,92,246,0.25);
+      color: #e9d5ff;
+      border-color: rgba(139,92,246,0.5);
+    }
+  </style>
+</head>
+
+<body data-client-type="it" data-domain="assignment">
+  <div class="aurora-bg" aria-hidden="true"></div>
+  <a href="#core" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-purple-600 focus:rounded-lg">본문으로 건너뛰기</a>
+
+  <!-- =========== HEADER =========== -->
+  <header class="sticky top-0 z-20 backdrop-blur-xl bg-slate-950/70 border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <a href="#top" class="flex items-center gap-3 group" aria-label="페이지 맨 위로">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500 via-pink-500 to-emerald-500 shadow-lg shadow-purple-500/30" aria-hidden="true"></div>
+        <div class="hidden sm:block">
+          <div class="font-bold text-base leading-tight">거리 기반 자동 배정 엔진</div>
+          <div class="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+            <span>WISHKET</span>
+            <span class="font-mono text-purple-400">#157617</span>
+            <span class="rounded-full px-1.5 py-0.5 bg-cyan-500/15 text-cyan-300 text-[10px] font-semibold">IT 버전</span>
+          </div>
+        </div>
+      </a>
+
+      <nav class="hidden lg:flex items-center gap-5 text-sm text-slate-400" aria-label="섹션 이동">
+        <a href="#core" class="hover:text-purple-400 transition">파이프라인</a>
+        <a href="#portfolio" class="hover:text-purple-400 transition">배정 현황</a>
+        <a href="#engine" class="hover:text-purple-400 transition">선정 엔진</a>
+        <a href="#operator" class="hover:text-purple-400 transition">관리 콘솔</a>
+        <a href="#questions" class="hover:text-purple-400 transition">질의</a>
+        <a href="#risks" class="hover:text-purple-400 transition">리스크</a>
+        <a href="#architecture" class="hover:text-purple-400 transition">아키텍처</a>
+        <a href="#timeline" class="hover:text-purple-400 transition">일정</a>
+      </nav>
+
+      <div class="flex items-center gap-2">
+        <button id="cmdk-trigger" class="hidden sm:flex items-center gap-2 text-sm text-slate-400 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition" aria-label="명령 팔레트 열기">
+          <i data-lucide="search" class="w-3.5 h-3.5"></i>
+          <span>검색</span>
+          <kbd class="font-mono text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-300">⌘K</kbd>
+        </button>
+        <a href="nonit.html" class="rounded-xl px-4 py-2 text-sm font-semibold bg-white/5 border border-white/10 hover:bg-white/10 transition text-slate-300">
+          비개발자용 →
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========== HERO =========== -->
+  <section id="top" class="relative max-w-7xl mx-auto px-6 pt-16 md:pt-24 pb-10">
+    <div class="max-w-4xl">
+      <div class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs bg-purple-500/10 border border-purple-500/20 text-purple-300 mb-6">
+        <span class="relative flex h-2 w-2" aria-hidden="true">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+        </span>
+        레퍼런스 UI · 제안서 참조용 · IT 담당자 대상
+      </div>
+
+      <h1 class="text-5xl md:text-7xl font-bold leading-[1.05] tracking-tight">
+        지도 검색 없이,<br/>
+        <span class="bg-gradient-to-r from-purple-400 via-pink-400 to-emerald-400 bg-clip-text text-transparent">거리와 균등을 함께</span> 만족하는 자동 배정
+      </h1>
+      <p class="mt-6 text-lg md:text-xl text-slate-300 max-w-2xl leading-relaxed">
+        기존 Java + Oracle 시스템의 <span class="text-cyan-300 font-semibold">코드를 수정하지 않고</span>,
+        엔진이 신청 테이블을 <span class="font-mono text-purple-300">DB 폴링</span>으로 감시하고,
+        균등은 <span class="text-emerald-300">제약</span>·거리는 <span class="text-emerald-300">목적</span>으로 분리해 선정하며,
+        확정 단계의 정합성은 <span class="font-mono text-purple-300">FOR UPDATE + 유니크 제약</span>으로 DB 수준에서 보장합니다.
+      </p>
+
+      <!-- 메타 뱃지 -->
+      <div class="mt-6 flex flex-wrap gap-2 text-xs" aria-label="프로젝트 메타 정보">
+        <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">예산 <b class="text-slate-100">800만 원부터</b> 협의</span>
+        <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">기간 <b class="text-slate-100">30일</b></span>
+        <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">지원 <b class="text-slate-100">58명</b> · 마감 2026-08-21</span>
+        <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">기존 스택 <b class="text-slate-100">Java 웹 + Oracle</b></span>
+        <span class="rounded-full px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-300">이전 공고 157444 재공고</span>
+      </div>
+
+      <div class="mt-8 flex flex-wrap items-center gap-3">
+        <a href="proto/index.html" class="group inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/25 transition">
+          <span class="relative flex h-2 w-2" aria-hidden="true">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          라이브 데모 체험 →
+          <span class="text-xs opacity-60 group-hover:opacity-100 transition">관리 콘솔 클릭 가능</span>
+        </a>
+        <a href="demo/자동시연.html" class="group inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold bg-purple-500/15 border border-purple-500/30 text-purple-200 hover:bg-purple-500/25 transition">
+          <i data-lucide="video" class="w-4 h-4"></i>
+          1분 30초 자동 시연 →
+          <span class="text-xs opacity-60 group-hover:opacity-100 transition">캡션 + 자동 순환</span>
+        </a>
+        <a href="#insights" class="rounded-xl px-5 py-3 text-sm text-slate-300 hover:text-purple-400 transition">
+          이 공고의 숨은 긴장 관계 →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== HERO INSIGHTS (Top 3) =========== -->
+  <section id="hero-insights" class="max-w-7xl mx-auto px-6 py-10 md:py-16">
+    <div class="mb-8">
+      <h2 class="text-2xl md:text-3xl font-bold">이 프로젝트를 이렇게 이해했습니다</h2>
+      <p class="mt-2 text-slate-400">현재 공고와 이전 공고(157444)를 함께 분석해 도출한 세 가지 접근 방식입니다.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all hover:scale-[1.02] hover:-translate-y-1 scroll-reveal">
+        <div class="text-xs text-purple-400 font-mono mb-2">INSIGHT 1 · 연동</div>
+        <h3 class="text-xl font-semibold mb-3">DB 폴링 무접촉 연동</h3>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          기존 시스템의 코드를 수정하지 않고 신청 테이블을 감시해 연동합니다. 기존 개발사의 협조에 대한 의존도를 낮추는
+          차별화 포인트이자, 최고점 리스크 R1(협조 지연)의 직접 완화책입니다.
+        </p>
+      </div>
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all hover:scale-[1.02] hover:-translate-y-1 scroll-reveal">
+        <div class="text-xs text-emerald-400 font-mono mb-2">INSIGHT 2 · 알고리즘</div>
+        <h3 class="text-xl font-semibold mb-3">균등=제약, 거리=목적</h3>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          균등 배분은 허용 편차 제약으로, 거리 최소화는 목적 함수로 층위를 분리합니다. 묶음 반경·허용 편차·가중치는
+          ENG_PARAM 설정값 — 규칙 조정이 재배포가 아닌 값 변경이 됩니다. 배정 실행은 일 1~2회 배치가 기본안입니다.
+        </p>
+      </div>
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all hover:scale-[1.02] hover:-translate-y-1 scroll-reveal">
+        <div class="text-xs text-pink-400 font-mono mb-2">INSIGHT 3 · 검증</div>
+        <h3 class="text-xl font-semibold mb-3">시뮬레이션 검증 2주 · 조정 3회</h3>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          과거 수기 배정 데이터로 배정 결과를 재현·비교하는 시뮬레이션 리포트로 "조정 반복"을 저비용화합니다.
+          공고의 제안 요청(검증 방법·조정 기간)에 대한 직접적 답이며, "조정은 계약 범위" 조항의 서면 실행 기준이 됩니다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== 01 CORE — 배정 자동화 파이프라인 =========== -->
+  <section id="core" class="max-w-7xl mx-auto px-6 py-20 md:py-28">
+    <div class="mb-10">
+      <div class="inline-flex items-center gap-2 text-xs font-mono text-purple-400 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" aria-hidden="true"></span>
+        01 · CORE
+      </div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">배정 자동화 파이프라인</h2>
+      <p class="mt-3 text-lg text-slate-300">
+        선별 → 좌표 → 묶음 → 선정 → 확정, 5단계 배치 한 회전으로 수기 검색·입력을 제거합니다
+        <span class="text-slate-500 text-sm">(EPM 유스케이스 11~15 · assign1001)</span>
+      </p>
+    </div>
+
+    <!-- 파이프라인 스테퍼 -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-7 mb-10">
+      <button class="pipe-step js-panel-btn text-left rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition spring-hover" data-key="step1">
+        <div class="flex items-center justify-between mb-3">
+          <span class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-300 font-mono text-sm font-bold">11</span>
+          <i data-lucide="filter" class="w-4 h-4 text-purple-400"></i>
+        </div>
+        <div class="font-semibold mb-1">선별</div>
+        <p class="text-xs text-slate-400 leading-relaxed">EXT_APPLY <span class="font-mono">DB 폴링</span> — 미배정 + 재배정 대상 추출 (BS0021)</p>
+      </button>
+      <button class="pipe-step js-panel-btn text-left rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition spring-hover" data-key="step2">
+        <div class="flex items-center justify-between mb-3">
+          <span class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-300 font-mono text-sm font-bold">12</span>
+          <i data-lucide="map-pin" class="w-4 h-4 text-cyan-400"></i>
+        </div>
+        <div class="font-semibold mb-1">좌표</div>
+        <p class="text-xs text-slate-400 leading-relaxed">주소 정제 → 지오코딩, 캐시 미스만 외부 호출 (BS0002) · 실패는 ENG_ADDR_FIX</p>
+      </button>
+      <button class="pipe-step js-panel-btn text-left rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition spring-hover" data-key="step3">
+        <div class="flex items-center justify-between mb-3">
+          <span class="w-8 h-8 rounded-lg bg-pink-500/20 flex items-center justify-center text-pink-300 font-mono text-sm font-bold">13</span>
+          <i data-lucide="boxes" class="w-4 h-4 text-pink-400"></i>
+        </div>
+        <div class="font-semibold mb-1">묶음</div>
+        <p class="text-xs text-slate-400 leading-relaxed">같은 도 내 그리디 근접 클러스터링 — 반경 파라미터, 2~3건 (BS0031~33)</p>
+      </button>
+      <button class="pipe-step js-panel-btn text-left rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition spring-hover" data-key="step4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-300 font-mono text-sm font-bold">14</span>
+          <i data-lucide="target" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <div class="font-semibold mb-1">선정</div>
+        <p class="text-xs text-slate-400 leading-relaxed">DistributionRegulator — 균등=제약·거리=목적 2단계 선정 (BS0034~35)</p>
+      </button>
+      <button class="pipe-step js-panel-btn text-left rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition spring-hover" data-key="step5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-300 font-mono text-sm font-bold">15</span>
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-amber-400"></i>
+        </div>
+        <div class="font-semibold mb-1">확정</div>
+        <p class="text-xs text-slate-400 leading-relaxed">묶음 단위 단일 트랜잭션 — <span class="font-mono">FOR UPDATE</span> 고정 순서 + 유니크 제약 (BS0007)</p>
+      </button>
+    </div>
+    <p class="text-xs text-slate-500 -mt-6 mb-10">각 단계를 클릭하면 상세 설계(규칙 코드·접근 테이블)가 우측 패널에 표시됩니다.</p>
+
+    <!-- 수용 기준 대응 -->
+    <div class="rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 p-6 md:p-8">
+      <div class="flex items-center gap-2 mb-5">
+        <i data-lucide="clipboard-check" class="w-5 h-5 text-emerald-400"></i>
+        <h3 class="font-semibold text-lg">공고 수용 기준 4건 — 설계로 이렇게 대응합니다</h3>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="rounded-xl p-5 bg-slate-950/40 border border-white/10">
+          <div class="text-xs text-slate-500 mb-1.5 font-mono">수용 기준 1</div>
+          <p class="text-sm text-slate-300 mb-3">"신청 건이 접수되면 담당자 조작 없이 배정이 확정되고 기존 시스템에 반영된다"</p>
+          <div class="flex items-start gap-2 text-sm">
+            <i data-lucide="arrow-right" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+            <p class="text-emerald-200">스케줄러 일 1~2회 배치가 폴링→확정까지 무인 수행. 단, 2~3건 묶음 요구와의 긴장 관계로 실행 시점은 착수 합의 1번 안건 (→ INSIGHTS)</p>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-slate-950/40 border border-white/10">
+          <div class="text-xs text-slate-500 mb-1.5 font-mono">수용 기준 2</div>
+          <p class="text-sm text-slate-300 mb-3">"배정 확정 직후 홈페이지의 기존 조회 화면에서 해당 기업이 조회된다"</p>
+          <div class="flex items-start gap-2 text-sm">
+            <i data-lucide="arrow-right" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+            <p class="text-emerald-200">기존 배정 테이블(EXT_ASSIGN 가칭)에 INSERT/UPDATE — 커밋 즉시 기존 화면이 읽음. 기록 스펙은 데이터 매핑 정의서로 기존 개발사 확인 (M2)</p>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-slate-950/40 border border-white/10">
+          <div class="text-xs text-slate-500 mb-1.5 font-mono">수용 기준 3</div>
+          <p class="text-sm text-slate-300 mb-3">"같은 도 안에서 전문가별 배정 건수 차이가 합의된 허용 범위 안에 유지된다"</p>
+          <div class="flex items-start gap-2 text-sm">
+            <i data-lucide="arrow-right" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+            <p class="text-emerald-200">허용 편차를 하드 제약으로 강제 + 커밋 직전 편차 재검증(위반 시 롤백·대기) + ENG_COUNTER를 FOR UPDATE로 갱신 — 어긋난 확정이 DB에 남지 않음</p>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-slate-950/40 border border-white/10">
+          <div class="text-xs text-slate-500 mb-1.5 font-mono">수용 기준 4</div>
+          <p class="text-sm text-slate-300 mb-3">"배정 불가 건이 대기 상태로 남고 확인할 수 있다"</p>
+          <div class="flex items-start gap-2 text-sm">
+            <i data-lucide="arrow-right" class="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+            <p class="text-emerald-200">WAITING 전환 + 사유 코드(GEOCODE_FAIL / NO_CANDIDATE / DEVIATION_BLOCK) 기록, 대기 목록 API·CSV 제공 (assign1002) — 화면 없이도 운영 가능</p>
+          </div>
+        </div>
+      </div>
+      <div class="mt-5 flex flex-wrap gap-2 text-xs">
+        <span class="rounded-full px-3 py-1 bg-purple-500/10 border border-purple-500/20 text-purple-300">무검수 자동 확정 → 회수(recall)·근거 이력이 필수 안전장치</span>
+        <span class="rounded-full px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 text-cyan-300">운영 테이블 ALTER 0건 — 신규 데이터는 전부 ENG_* 격리</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== 02 PORTFOLIO — 배정 현황 Bento (모델 82) =========== -->
+  <section id="portfolio" class="max-w-7xl mx-auto px-6 py-20 md:py-28">
+    <div class="mb-10">
+      <div class="text-xs font-mono text-emerald-400 mb-3">02 · PORTFOLIO</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">배정 현황 모니터</h2>
+      <p class="mt-3 text-lg text-slate-300">
+        엑셀 대조 없이 — 도별 편차·전문가 부하·배치 결과를 한 화면에
+        <span class="text-slate-500 text-sm">(추가 도입 검토 화면 · 프로토타입 모델 82 기반 미리보기)</span>
+      </p>
+    </div>
+
+    <!-- Bento grid KPIs -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6">
+      <div class="col-span-2 md:col-span-2 md:row-span-2 rounded-3xl p-8 backdrop-blur-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/20 relative overflow-hidden scroll-reveal">
+        <div class="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 rounded-full bg-purple-500/10 blur-3xl" aria-hidden="true"></div>
+        <div class="relative">
+          <div class="text-sm text-slate-400 mb-2">오늘 배치 확정 건수 <span class="text-slate-600">(08-16 06:00 정규 배치)</span></div>
+          <div class="text-5xl md:text-6xl font-bold leading-none">
+            <span data-countup="68">0</span><span class="text-2xl text-slate-400">건</span>
+          </div>
+          <div class="mt-4 flex items-center gap-2 text-emerald-400">
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+            <span class="font-semibold">대상 72건 중 확정 68 · 대기 4</span>
+          </div>
+          <div class="mt-6 grid grid-cols-3 gap-3 text-center">
+            <div class="rounded-xl p-3 bg-slate-950/40 border border-white/10">
+              <div class="text-lg font-bold text-pink-300"><span data-countup="27">0</span></div>
+              <div class="text-[10px] text-slate-500 mt-0.5">생성 묶음 (2~3건)</div>
+            </div>
+            <div class="rounded-xl p-3 bg-slate-950/40 border border-white/10">
+              <div class="text-lg font-bold text-cyan-300"><span data-countup-decimal="6.2">0</span><span class="text-xs">km</span></div>
+              <div class="text-[10px] text-slate-500 mt-0.5">평균 배정 거리 (하버사인)</div>
+            </div>
+            <div class="rounded-xl p-3 bg-slate-950/40 border border-white/10">
+              <div class="text-lg font-bold text-emerald-300"><span data-countup-decimal="96.4">0</span><span class="text-xs">%</span></div>
+              <div class="text-[10px] text-slate-500 mt-0.5">좌표 캐시 히트율</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 scroll-reveal">
+        <div class="text-xs text-slate-400 mb-1">대기(WAITING) 건</div>
+        <div class="text-2xl font-bold text-amber-400"><span data-countup="4">0</span>건</div>
+        <div class="mt-2 space-y-1 text-[10px] text-slate-500 font-mono">
+          <div>GEOCODE_FAIL ×2</div>
+          <div>NO_CANDIDATE ×1 · DEVIATION_BLOCK ×1</div>
+        </div>
+      </div>
+
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 scroll-reveal">
+        <div class="text-xs text-slate-400 mb-1">등록 전문가</div>
+        <div class="text-2xl font-bold"><span data-countup="40">0</span><span class="text-base text-slate-500">명 (추정)</span></div>
+        <div class="mt-1 text-xs text-slate-500">일 신청 60~80건 (추정 · Q6 재확인)</div>
+      </div>
+
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 scroll-reveal">
+        <div class="text-xs text-slate-400 mb-1">도별 최대 편차</div>
+        <div class="flex items-baseline gap-2">
+          <div class="text-2xl font-bold text-emerald-400"><span data-countup="2">0</span></div>
+          <div class="text-sm text-slate-500">/ 허용 2건</div>
+        </div>
+        <div class="mt-2 inline-flex items-center gap-1.5 text-xs rounded-full px-2 py-0.5 bg-amber-500/20 text-amber-300">상한 도달 — 경기</div>
+      </div>
+
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 scroll-reveal">
+        <div class="text-xs text-slate-400 mb-1">배치 실행 (ENG_JOB_RUN)</div>
+        <div class="text-2xl font-bold text-cyan-400">06:00<span class="text-sm text-slate-500"> · 18:00</span></div>
+        <div class="mt-1 text-xs text-slate-500">일 2회 · 실행중 유니크 잠금 (BS0042)</div>
+      </div>
+    </div>
+
+    <!-- Charts + gauges row -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div class="lg:col-span-2 rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold">일별 배치 결과 추이 <span class="text-xs text-slate-500 font-normal">확정 / 대기</span></h3>
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400" aria-hidden="true"></span> 데모 목업
+          </div>
+        </div>
+        <div class="h-64">
+          <canvas id="chart-batch-trend" role="img" aria-label="최근 7일 배치 확정·대기 건수 추이 차트"></canvas>
+        </div>
+      </div>
+
+      <!-- 도별 편차 게이지 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <h3 class="font-semibold mb-1">도별 균등 편차 게이지</h3>
+        <p class="text-xs text-slate-500 mb-4">당월 (최대−최소) 건수 / 허용 편차 2건 · ENG_COUNTER 집계</p>
+        <div class="space-y-3.5 text-sm" id="deviation-gauges">
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span>경기</span><span class="text-red-300 font-mono">2 / 2 도달</span></div>
+            <div class="h-2 rounded-full bg-white/10 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-amber-400 to-red-500" style="width:100%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span>서울</span><span class="text-amber-300 font-mono">1 / 2</span></div>
+            <div class="h-2 rounded-full bg-white/10 overflow-hidden"><div class="h-full rounded-full bg-amber-400/80" style="width:50%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span>충남</span><span class="text-emerald-300 font-mono">1 / 2</span></div>
+            <div class="h-2 rounded-full bg-white/10 overflow-hidden"><div class="h-full rounded-full bg-emerald-400/80" style="width:50%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span>전북</span><span class="text-emerald-300 font-mono">0 / 2</span></div>
+            <div class="h-2 rounded-full bg-white/10 overflow-hidden"><div class="h-full rounded-full bg-emerald-400/80" style="width:6%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span>경북</span><span class="text-emerald-300 font-mono">1 / 2</span></div>
+            <div class="h-2 rounded-full bg-white/10 overflow-hidden"><div class="h-full rounded-full bg-emerald-400/80" style="width:50%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span>경남</span><span class="text-emerald-300 font-mono">0 / 2</span></div>
+            <div class="h-2 rounded-full bg-white/10 overflow-hidden"><div class="h-full rounded-full bg-emerald-400/80" style="width:6%"></div></div>
+          </div>
+        </div>
+        <p class="mt-4 text-[10px] text-slate-500">허용 편차 도달 시 해당 도 후보 집합에서 상위 건수 전문가 배제 — 배제 결과 후보 0명이면 WAITING(DEVIATION_BLOCK)</p>
+      </div>
+    </div>
+
+    <!-- 부하 히트맵 -->
+    <div class="mt-6 rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+      <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+        <h3 class="font-semibold">전문가 부하 히트맵 <span class="text-xs text-slate-500 font-normal">당월 배정 건수 · 40명 (추정)</span></h3>
+        <div class="flex items-center gap-3 text-[10px] text-slate-400">
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded load-ok inline-block border-0"></span>편차 여유</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded load-near inline-block border-0"></span>상한 근접</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded load-over inline-block border-0"></span>도달·차단</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded load-off inline-block border-0"></span>배정 불가</span>
+        </div>
+      </div>
+      <p class="text-xs text-slate-500 mb-4">지도 시각화는 스코프 밖 — 공간 정보는 히트맵·게이지·근접순 정렬로 표현합니다 (색 규약: 초록/노랑/빨강)</p>
+      <div id="load-heatmap" class="grid grid-cols-5 sm:grid-cols-8 lg:grid-cols-10 gap-1.5" role="img" aria-label="전문가 40명 당월 배정 건수 히트맵"></div>
+      <p class="mt-3 text-[10px] text-slate-500">샘플: 김OO(경기 12건)·최OO(경기 13건 — 편차 초과·배정 차단)·박OO(서울 14건 — 배정 가능 OFF) 등 가상 데이터 · 실명 아님</p>
+    </div>
+  </section>
+
+  <!-- =========== 03 ENGINE — 선정 엔진 + 시뮬레이션 A/B =========== -->
+  <section id="engine" class="max-w-7xl mx-auto px-6 py-20 md:py-28">
+    <div class="mb-10">
+      <div class="text-xs font-mono text-pink-400 mb-3">03 · ENGINE</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">균등 제약 · 거리 목적 선정 엔진</h2>
+      <p class="mt-3 text-lg text-slate-300">
+        "거리와 균등이 충돌할 때" — 가중합으로 섞지 않고 층위를 분리합니다
+        <span class="text-slate-500 text-sm">(RSM DistributionRegulator · BS0034~35, BS0038)</span>
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <!-- 알고리즘 -->
+      <div class="rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <div class="flex items-center gap-2">
+            <i data-lucide="git-branch" class="w-4 h-4 text-pink-400"></i>
+            <h3 class="font-semibold text-sm">전문가 선정 2단계 — 결정 규칙</h3>
+          </div>
+          <span class="text-[10px] font-mono text-slate-500">실행계획 §5.2</span>
+        </div>
+        <pre class="!bg-slate-950/70 p-5 text-xs leading-relaxed overflow-x-auto font-mono text-slate-200" aria-label="전문가 선정 의사코드">후보 = 같은 도 소속 AND 배정 가능 AND (옵션: 일일 한도 미달)
+
+<span class="text-purple-300">1단계 (균등 = 제약)</span>                                <span class="text-slate-500"># BS0034</span>
+  이번 배정 후 (전문가 월 건수 − 도 내 최소 건수) ≤ 허용편차
+  인 후보만 남김
+  → 남은 후보 없음 → WAITING(DEVIATION_BLOCK)
+    또는 (옵션) 인접 도 우회                       <span class="text-slate-500"># BS0009/37</span>
+
+<span class="text-emerald-300">2단계 (거리 = 목적)</span>                              <span class="text-slate-500"># BS0035</span>
+  남은 집합에서
+    진행중 건수 ASC
+    → 묶음 대표 좌표와의 하버사인 거리 ASC
+    → 월 배정 수 ASC
+    → expert_id ASC   <span class="text-slate-500"># 완전 동률 — 재현성 보장 (BS0038)</span></pre>
+        <div class="px-6 py-4 border-t border-white/10 text-xs text-slate-400 leading-relaxed">
+          가중합 점수식 대비 장점 — <span class="text-slate-200">"편차가 몇 건까지 벌어질 수 있는가"가 파라미터 하나로 명시적으로 보장</span>되고,
+          담당자에게 배정 사유를 그대로 설명할 수 있습니다. 편차 상한에서 거리가 손해 보는 정도는 시뮬레이션 리포트의
+          평균·최대 이동 거리로 정량 확인하며 허용편차 값을 조정합니다.
+        </div>
+      </div>
+
+      <!-- 파라미터 카드 + 판단 근거 -->
+      <div class="space-y-6">
+        <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+          <div class="flex items-center gap-2 mb-4">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4 text-purple-400"></i>
+            <h3 class="font-semibold text-sm">규칙 파라미터 — 전부 ENG_PARAM 설정값</h3>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10">
+              <div class="text-[10px] text-slate-500 font-mono mb-1">bundleRadiusKm</div>
+              <div class="font-bold text-lg">5<span class="text-xs text-slate-500"> km (초안)</span></div>
+              <div class="text-[10px] text-slate-500 mt-1">묶음 반경 — 워크숍 M1 확정</div>
+            </div>
+            <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10">
+              <div class="text-[10px] text-slate-500 font-mono mb-1">allowedDeviation</div>
+              <div class="font-bold text-lg">2<span class="text-xs text-slate-500"> 건 (초안)</span></div>
+              <div class="text-[10px] text-slate-500 mt-1">도 내 최대−최소 허용 편차</div>
+            </div>
+            <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10">
+              <div class="text-[10px] text-slate-500 font-mono mb-1">counterPeriod</div>
+              <div class="font-bold text-lg">월<span class="text-xs text-slate-500"> 단위 리셋 (권장)</span></div>
+              <div class="text-[10px] text-slate-500 mt-1">현행 엑셀 월별 관리와 일치 (Q4-A)</div>
+            </div>
+            <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10">
+              <div class="text-[10px] text-slate-500 font-mono mb-1">soloAssignAllowed</div>
+              <div class="font-bold text-lg">true<span class="text-xs text-slate-500"> (권장)</span></div>
+              <div class="text-[10px] text-slate-500 mt-1">반경 내 1건뿐이면 단독 배정 (Q7-A)</div>
+            </div>
+          </div>
+          <p class="mt-4 text-xs text-slate-400">규칙이 코드가 아닌 설정값이므로 <span class="text-emerald-300">조정 1회 비용 = 재배포가 아니라 값 변경 + 재시뮬레이션</span> — "조정은 계약 범위" 조항을 감당 가능하게 만드는 장치입니다.</p>
+        </div>
+
+        <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+          <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="scroll-text" class="w-4 h-4 text-cyan-400"></i>
+            <h3 class="font-semibold text-sm">배정 근거 이력 샘플 — ENG_ASSIGN_LOG (추가 전용)</h3>
+          </div>
+          <div class="rounded-xl p-4 bg-slate-950/50 border border-white/10 text-xs font-mono leading-relaxed overflow-x-auto">
+            <div class="text-slate-500">// APL-2026-0812-0203 · (주)두리엔지 (가상 상호)</div>
+            <div><span class="text-purple-300">event</span>: 배정확정 · <span class="text-purple-300">expert</span>: 김OO(경기) · <span class="text-purple-300">distance</span>: 5,120m</div>
+            <div><span class="text-purple-300">bundle</span>: 2026-00186 (2건) · <span class="text-purple-300">rules</span>: [BS0034, BS0035, MG1007]</div>
+            <div><span class="text-purple-300">candidates</span>: 김OO 11건/진행2 ✓ · 이OO 11건/진행3 · 최OO 13건 <span class="text-red-300">편차 배제</span></div>
+            <div><span class="text-purple-300">param_snapshot</span>: {radius:5, deviation:2, period:"2026-08"}</div>
+          </div>
+          <p class="mt-3 text-[10px] text-slate-500">비기능 요구 "판단 근거가 남아 담당자가 확인" 대응 — 후보 스냅샷·적용 규칙·파라미터 스냅샷까지 기록 (BS0008·BS0046)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 시뮬레이션 A/B -->
+    <div class="rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 p-6 md:p-8">
+      <div class="flex items-start justify-between flex-wrap gap-3 mb-6">
+        <div>
+          <h3 class="font-semibold text-lg flex items-center gap-2">
+            <i data-lucide="flask-conical" class="w-5 h-5 text-emerald-400"></i>
+            시뮬레이션 A/B — 검증 2주 · 조정 3회의 도구
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">과거 신청 건 + 파라미터 오버라이드로 운영 로직을 드라이런 — 운영 데이터 무변경 (BS0075) · POST /api/v1/simulations</p>
+        </div>
+        <span class="rounded-full px-3 py-1 text-xs bg-emerald-500/15 border border-emerald-500/25 text-emerald-300">공고 제안 요청 "검증 방법과 조정 기간"에 대한 답</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <div class="h-72">
+            <canvas id="chart-sim-radar" role="img" aria-label="파라미터 세트 A와 B의 시뮬레이션 품질 비교 레이더 차트"></canvas>
+          </div>
+          <div class="mt-3 flex justify-center gap-5 text-xs text-slate-400">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-400" aria-hidden="true"></span>세트 A — 반경 3km</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400" aria-hidden="true"></span>세트 B — 반경 5km</span>
+          </div>
+        </div>
+        <div class="space-y-3">
+          <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10 flex items-center justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold">수기 배정 일치율 <span class="text-[10px] text-slate-500 font-mono">manualMatchRate</span></div>
+              <div class="text-xs text-slate-500">과거 수기 배정 결과와의 대조 (BS0074)</div>
+            </div>
+            <div class="text-right font-mono text-sm"><span class="text-purple-300">A 87%</span> · <span class="text-emerald-300">B 84%</span></div>
+          </div>
+          <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10 flex items-center justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold">평균 이동 거리 <span class="text-[10px] text-slate-500 font-mono">avgDistanceKm</span></div>
+              <div class="text-xs text-slate-500">묶음 대표 좌표 ↔ 전문가 (하버사인)</div>
+            </div>
+            <div class="text-right font-mono text-sm"><span class="text-purple-300">A 5.4km</span> · <span class="text-emerald-300">B 6.2km</span></div>
+          </div>
+          <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10 flex items-center justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold">묶음 성사율 (2~3건)</div>
+              <div class="text-xs text-slate-500">반경이 좁으면 단독 배정 비율 증가</div>
+            </div>
+            <div class="text-right font-mono text-sm"><span class="text-purple-300">A 72%</span> · <span class="text-emerald-300">B 91%</span></div>
+          </div>
+          <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10 flex items-center justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold">대기 발생 / 최대 편차</div>
+              <div class="text-xs text-slate-500">waiting · maxDeviation (BS0073)</div>
+            </div>
+            <div class="text-right font-mono text-sm"><span class="text-purple-300">A 76건 · 2</span> · <span class="text-emerald-300">B 41건 · 2</span></div>
+          </div>
+          <div class="rounded-xl p-4 bg-emerald-500/8 border border-emerald-500/20 text-xs text-slate-300 leading-relaxed">
+            <span class="font-semibold text-emerald-300">운영 절차:</span> 검증 2주 동안 파라미터 3세트 비교 → 회차별 리포트로 발주처와 조정(3회) → 확정값 ENG_PARAM 반영 (MG1008).
+            숫자는 데모 목업 — 실제 수치는 발주처 과거 데이터로 산출합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== 04 OPERATOR — 추가 도입 관리 콘솔 6화면 =========== -->
+  <section id="operator" class="max-w-7xl mx-auto px-6 py-20 md:py-28">
+    <div class="mb-10">
+      <div class="text-xs font-mono text-cyan-400 mb-3">04 · OPERATOR</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">추가 도입 검토 — 관리 콘솔 6화면</h2>
+      <p class="mt-3 text-lg text-slate-300 max-w-3xl">
+        이번 계약 범위 밖 — 견적을 보고 도입을 판단하시는 항목입니다. 계약 범위 백엔드가 <span class="text-cyan-300 font-semibold">API-first</span>로 설계되어,
+        어느 화면을 언제 채택해도 <span class="text-emerald-300">백엔드 재작업이 없습니다</span> <span class="text-slate-500 text-sm">(제안서 §2.5 · 프로토타입 모델 81~86)</span>
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
+      <button class="js-screen-btn text-left rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-500/30 transition spring-hover" data-idx="0">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-mono text-xs text-cyan-300 bg-cyan-500/10 rounded px-2 py-0.5">모델 81</span>
+          <span class="text-xs text-slate-500">4~6일 · 120~180만원</span>
+        </div>
+        <div class="font-semibold mb-2 flex items-center gap-2"><i data-lucide="users" class="w-4 h-4 text-cyan-400"></i>전문가 관리</div>
+        <p class="text-xs text-slate-400 leading-relaxed mb-3">명단·소속 도·배정 가능 토글·부재 기간 — 현행 "DB 직접 처리"를 화면으로 대체</p>
+        <div class="rounded-lg bg-slate-950/50 border border-white/10 p-2.5 text-[10px] font-mono text-slate-500 leading-relaxed">
+          김OO | 경기 | 당월 12건 | 가능 [ON]<br/>박OO | 서울 | 당월 14건 | 가능 <span class="text-amber-300">[OFF]</span><br/>이OO | 경기 | 당월 11건 | 가능 [ON]
+        </div>
+        <div class="mt-3 text-[10px] text-slate-500 font-mono">EXT_EXPERT + ENG_COUNTER · BS0081~83</div>
+      </button>
+
+      <button class="js-screen-btn text-left rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-500/30 transition spring-hover" data-idx="1">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-mono text-xs text-cyan-300 bg-cyan-500/10 rounded px-2 py-0.5">모델 82</span>
+          <span class="text-xs text-slate-500">3~5일 · 90~150만원</span>
+        </div>
+        <div class="font-semibold mb-2 flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-400"></i>배정 현황 모니터</div>
+        <p class="text-xs text-slate-400 leading-relaxed mb-3">도별 편차 게이지 + 부하 히트맵 + "오늘 처리할 것" — 위 PORTFOLIO 섹션이 이 화면의 미리보기입니다</p>
+        <div class="rounded-lg bg-slate-950/50 border border-white/10 p-2.5 text-[10px] font-mono text-slate-500 leading-relaxed">
+          경기 편차 <span class="text-red-300">2/2 ■■■■■</span><br/>서울 편차 <span class="text-amber-300">1/2 ■■■□□</span><br/>충남 편차 <span class="text-emerald-300">1/2 ■■□□□</span>
+        </div>
+        <div class="mt-3 text-[10px] text-slate-500 font-mono">ENG_COUNTER·JOB_RUN·CASE_STATE 집계 · BS0084~86</div>
+      </button>
+
+      <button class="js-screen-btn text-left rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-500/30 transition spring-hover" data-idx="2">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-mono text-xs text-cyan-300 bg-cyan-500/10 rounded px-2 py-0.5">모델 83</span>
+          <span class="text-xs text-slate-500">4~6일 · 120~180만원</span>
+        </div>
+        <div class="font-semibold mb-2 flex items-center gap-2"><i data-lucide="inbox" class="w-4 h-4 text-amber-400"></i>실패 건 처리 · 수동 재배정</div>
+        <p class="text-xs text-slate-400 leading-relaxed mb-3">인박스 제로 큐 — 대기·회수 건만 모으고, 사유별 추천 액션 + 후보 카드(거리·월 건수·진행중)</p>
+        <div class="rounded-lg bg-slate-950/50 border border-white/10 p-2.5 text-[10px] font-mono text-slate-500 leading-relaxed">
+          (주)한빛정밀 <span class="text-amber-300">GEO_FAIL</span> → 보정 CSV<br/>대성테크(주) <span class="text-amber-300">NO_EXPERT</span> → 수동 배정<br/>(주)두리엔지 <span class="text-orange-300">회수</span> → 재배정
+        </div>
+        <div class="mt-3 text-[10px] text-slate-500 font-mono">assign1002·1003 + geo1002·1003 재사용 · BS0087~89</div>
+      </button>
+
+      <button class="js-screen-btn text-left rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-500/30 transition spring-hover" data-idx="3">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-mono text-xs text-cyan-300 bg-cyan-500/10 rounded px-2 py-0.5">모델 84</span>
+          <span class="text-xs text-slate-500">4~6일 · 120~180만원</span>
+        </div>
+        <div class="font-semibold mb-2 flex items-center gap-2"><i data-lucide="history" class="w-4 h-4 text-purple-400"></i>배정 이력 · 통계</div>
+        <p class="text-xs text-slate-400 leading-relaxed mb-3">"왜 이 전문가?" 근거 카드(XAI 3줄 내러티브 + 후보 비교표 펼침) + 기간·지역별 통계</p>
+        <div class="rounded-lg bg-slate-950/50 border border-white/10 p-2.5 text-[10px] font-mono text-slate-500 leading-relaxed">
+          왜 김OO? — 편차 이내 후보 2명 중<br/>진행중 최소(2건) · 거리 5.1km<br/>적용 규칙 [BS0034·BS0035]
+        </div>
+        <div class="mt-3 text-[10px] text-slate-500 font-mono">assign1004 + 집계 쿼리 · BS0090~92</div>
+      </button>
+
+      <button class="js-screen-btn text-left rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-500/30 transition spring-hover" data-idx="4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-mono text-xs text-cyan-300 bg-cyan-500/10 rounded px-2 py-0.5">모델 85</span>
+          <span class="text-xs text-slate-500">2~3일 · 60~100만원</span>
+        </div>
+        <div class="font-semibold mb-2 flex items-center gap-2"><i data-lucide="sliders-horizontal" class="w-4 h-4 text-pink-400"></i>규칙 파라미터 · 시뮬레이션</div>
+        <p class="text-xs text-slate-400 leading-relaxed mb-3">묶음 반경·허용 편차 조정 + A/B 드라이런 비교 — ENG_PARAM이 이미 설정 테이블이라 편집 UI만 얹으면 됩니다</p>
+        <div class="rounded-lg bg-slate-950/50 border border-white/10 p-2.5 text-[10px] font-mono text-slate-500 leading-relaxed">
+          radius 3→5km [드라이런]<br/>일치율 87→84% · 성사율 72→<span class="text-emerald-300">91%</span><br/><span class="text-purple-300">&lt;이 설정 적용&gt;</span> → 승인 다이얼로그
+        </div>
+        <div class="mt-3 text-[10px] text-slate-500 font-mono">ENG_PARAM + sim1001 재사용 · BS0093~95</div>
+      </button>
+
+      <button class="js-screen-btn text-left rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-500/30 transition spring-hover" data-idx="5">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-mono text-xs text-cyan-300 bg-cyan-500/10 rounded px-2 py-0.5">모델 86</span>
+          <span class="text-xs text-slate-500">3~4일 · 90~130만원</span>
+        </div>
+        <div class="font-semibold mb-2 flex items-center gap-2"><i data-lucide="bell" class="w-4 h-4 text-emerald-400"></i>전문가 알림</div>
+        <p class="text-xs text-slate-400 leading-relaxed mb-3">배정 확정 이벤트에 발송 훅 — 알림 절제 정책(일 1통 다이제스트 기본, 긴급만 즉시), 채널은 협의(알림톡/SMS/메일)</p>
+        <div class="rounded-lg bg-slate-950/50 border border-white/10 p-2.5 text-[10px] font-mono text-slate-500 leading-relaxed">
+          [다이제스트 18:10] 김OO님<br/>오늘 배정 2건 — 홈페이지에서<br/>확인해 주세요 (기존 조회 화면)
+        </div>
+        <div class="mt-3 text-[10px] text-slate-500 font-mono">확정 이벤트 훅 + 발송 이력 테이블 · BS0096~98</div>
+      </button>
+    </div>
+    <p class="text-xs text-slate-500 -mt-4 mb-8">카드를 클릭하면 범위·전제·견적 상세가 우측 패널에 표시됩니다.</p>
+
+    <!-- 견적 계산기 -->
+    <div class="rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 p-6 md:p-8">
+      <div class="flex items-center gap-2 mb-1">
+        <i data-lucide="calculator" class="w-5 h-5 text-cyan-400"></i>
+        <h3 class="font-semibold text-lg">도입 조합 견적 계산기</h3>
+      </div>
+      <p class="text-sm text-slate-400 mb-5">채택할 화면을 선택해 보세요 — 개략 추정이며, 채택 시점에 확정 견적을 드립니다 (전제: 관리자 화면 공통 기반은 최초 1회 구축)</p>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2" id="est-list">
+          <label class="flex items-center gap-3 rounded-xl px-4 py-3 bg-slate-950/40 border border-white/10 cursor-pointer hover:bg-white/5 transition">
+            <input type="checkbox" class="est-check accent-purple-500 w-4 h-4" data-min="120" data-max="180" data-dmin="4" data-dmax="6" checked />
+            <span class="text-sm flex-1">1 전문가 관리 화면</span><span class="text-xs text-slate-500 font-mono">120~180</span>
+          </label>
+          <label class="flex items-center gap-3 rounded-xl px-4 py-3 bg-slate-950/40 border border-white/10 cursor-pointer hover:bg-white/5 transition">
+            <input type="checkbox" class="est-check accent-purple-500 w-4 h-4" data-min="90" data-max="150" data-dmin="3" data-dmax="5" checked />
+            <span class="text-sm flex-1">2 배정 현황 모니터</span><span class="text-xs text-slate-500 font-mono">90~150</span>
+          </label>
+          <label class="flex items-center gap-3 rounded-xl px-4 py-3 bg-slate-950/40 border border-white/10 cursor-pointer hover:bg-white/5 transition">
+            <input type="checkbox" class="est-check accent-purple-500 w-4 h-4" data-min="120" data-max="180" data-dmin="4" data-dmax="6" />
+            <span class="text-sm flex-1">3 실패 건 처리·수동 재배정</span><span class="text-xs text-slate-500 font-mono">120~180</span>
+          </label>
+          <label class="flex items-center gap-3 rounded-xl px-4 py-3 bg-slate-950/40 border border-white/10 cursor-pointer hover:bg-white/5 transition">
+            <input type="checkbox" class="est-check accent-purple-500 w-4 h-4" data-min="120" data-max="180" data-dmin="4" data-dmax="6" />
+            <span class="text-sm flex-1">4 배정 이력·통계</span><span class="text-xs text-slate-500 font-mono">120~180</span>
+          </label>
+          <label class="flex items-center gap-3 rounded-xl px-4 py-3 bg-slate-950/40 border border-white/10 cursor-pointer hover:bg-white/5 transition">
+            <input type="checkbox" class="est-check accent-purple-500 w-4 h-4" data-min="60" data-max="100" data-dmin="2" data-dmax="3" />
+            <span class="text-sm flex-1">5 파라미터 조정·시뮬레이션 UI</span><span class="text-xs text-slate-500 font-mono">60~100</span>
+          </label>
+          <label class="flex items-center gap-3 rounded-xl px-4 py-3 bg-slate-950/40 border border-white/10 cursor-pointer hover:bg-white/5 transition">
+            <input type="checkbox" class="est-check accent-purple-500 w-4 h-4" data-min="90" data-max="130" data-dmin="3" data-dmax="4" />
+            <span class="text-sm flex-1">6 전문가 알림 발송</span><span class="text-xs text-slate-500 font-mono">90~130</span>
+          </label>
+        </div>
+        <div class="rounded-2xl p-6 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border border-cyan-500/20">
+          <div class="text-xs text-slate-400 mb-1">선택 <span id="est-count" class="font-mono">2</span>종 합산 (개별 채택 기준)</div>
+          <div class="text-3xl font-bold text-cyan-300"><span id="est-amount">210~330</span><span class="text-base text-slate-400">만원</span></div>
+          <div class="mt-1 text-xs text-slate-500">개발 기간 <span id="est-days" class="font-mono">7~11</span>일</div>
+          <div id="est-bundle-note" class="mt-4 hidden rounded-xl p-3 bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-200 leading-relaxed">
+            6종 일괄 채택 시 공통 기반(인증·화면 골격) 공유로 <b>약 450~700만원 · 18~24일</b> 수준 추정 — 단순 합산보다 낮아집니다.
+          </div>
+          <p class="mt-4 text-[10px] text-slate-500 leading-relaxed">대기 조회·회수·근거 이력·보정·시뮬레이션 API는 이번 계약 범위에 이미 포함 — 화면 작업만 추가됩니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== 05 INSIGHTS — 모호 Top3 + 이전 공고 비교 =========== -->
+  <section id="insights" class="max-w-7xl mx-auto px-6 py-20 md:py-28">
+    <div class="mb-10">
+      <div class="inline-flex items-center gap-2 text-xs font-mono text-amber-400 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" aria-hidden="true"></span>
+        05 · INSIGHTS
+        <span class="rounded-full px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-semibold">보너스 자료</span>
+      </div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">공고가 스스로 "미정"이라 말한 것들</h2>
+      <p class="mt-3 text-lg text-slate-300">모호 항목 10건 중 아키텍처를 좌우하는 Top 3 — 해석 A/B를 눌러 트레이드오프를 비교해 보세요</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-12">
+      <!-- AM-1 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-amber-500/20">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-mono text-xs text-amber-300 bg-amber-500/10 rounded px-2 py-0.5">§7-1 · 최우선</span>
+          <span class="text-[10px] text-slate-500">영향: 엔진 아키텍처 전체 · 일정 ±1주</span>
+        </div>
+        <h3 class="font-semibold mb-2">배정 실행 시점 — 즉시 확정 vs 2~3건 묶음의 긴장</h3>
+        <p class="text-xs text-slate-400 leading-relaxed mb-4">
+          수용 기준 "접수되면 …확정"은 즉시성을 암시하지만, 근접 기업 2~3개 묶음은 묶을 상대가 모일 시간이 필요합니다.
+          즉시 배정하면 묶음 상대가 아직 없는 건이 생깁니다.
+        </p>
+        <div class="flex gap-2 mb-3" role="group" aria-label="해석 선택">
+          <button class="ab-btn flex-1 rounded-lg px-3 py-1.5 text-xs border border-white/10 bg-white/5 text-slate-300 transition" data-ab-group="am1" data-ab="a" aria-pressed="true">A 일 1~2회 배치 ✓권장</button>
+          <button class="ab-btn flex-1 rounded-lg px-3 py-1.5 text-xs border border-white/10 bg-white/5 text-slate-300 transition" data-ab-group="am1" data-ab="b" aria-pressed="false">B 준실시간+대기 창</button>
+        </div>
+        <div class="ab-panel rounded-xl p-4 bg-slate-950/40 border border-white/10 text-xs text-slate-300 leading-relaxed" data-ab-group="am1" data-ab="a">
+          묶음 품질 최상 · 구현 단순 · 조회 반영 최대 반일 지연. 스케줄러 @Scheduled + ENG_JOB_RUN 잠금으로 단일 실행 보장. <span class="text-emerald-300">기본안으로 제안 — 착수 워크숍 1번 안건.</span>
+        </div>
+        <div class="ab-panel hidden rounded-xl p-4 bg-slate-950/40 border border-white/10 text-xs text-slate-300 leading-relaxed" data-ab-group="am1" data-ab="b">
+          반영 빠름 · 묶음 대기 창 N시간의 상태 관리 복잡도 증가(만료 처리·부분 묶음). 필요 시 배치 기본안에서 상향 협의하는 옵션 경로로 분리.
+        </div>
+      </div>
+
+      <!-- AM-2 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-mono text-xs text-amber-300 bg-amber-500/10 rounded px-2 py-0.5">§7-9</span>
+          <span class="text-[10px] text-slate-500">영향: 연동 구조 · 3자 협조 의존도</span>
+        </div>
+        <h3 class="font-semibold mb-2">신청 인지 방식 — API 호출 vs DB 폴링</h3>
+        <p class="text-xs text-slate-400 leading-relaxed mb-4">
+          1차 공고(157444)는 기존 사이트가 배정 API를 호출하고 그 수정은 발주처 담당이었습니다. 이번 공고는 언급이 없습니다 — 결정에 따라 기존 개발사 협조 의존도가 달라집니다.
+        </p>
+        <div class="flex gap-2 mb-3" role="group" aria-label="해석 선택">
+          <button class="ab-btn flex-1 rounded-lg px-3 py-1.5 text-xs border border-white/10 bg-white/5 text-slate-300 transition" data-ab-group="am2" data-ab="a" aria-pressed="true">A 엔진이 DB 폴링 ✓권장</button>
+          <button class="ab-btn flex-1 rounded-lg px-3 py-1.5 text-xs border border-white/10 bg-white/5 text-slate-300 transition" data-ab-group="am2" data-ab="b" aria-pressed="false">B 기존 시스템이 API 호출</button>
+        </div>
+        <div class="ab-panel rounded-xl p-4 bg-slate-950/40 border border-white/10 text-xs text-slate-300 leading-relaxed" data-ab-group="am2" data-ab="a">
+          기존 시스템 코드 수정 0건 — 개발사 협조가 "스키마 정보 제공"으로 수렴. 최고점 리스크 R1의 직접 완화. 폴링 주기=배치 주기라 실시간성 손해도 없음.
+        </div>
+        <div class="ab-panel hidden rounded-xl p-4 bg-slate-950/40 border border-white/10 text-xs text-slate-300 leading-relaxed" data-ab-group="am2" data-ab="b">
+          실시간성은 높지만 기존 시스템 수정 + 기존 개발사 작업·배포 일정에 종속. 1차 공고 시점 "소스 이관 중" 정황을 감안하면 일정 리스크가 큼.
+        </div>
+      </div>
+
+      <!-- AM-3 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-mono text-xs text-amber-300 bg-amber-500/10 rounded px-2 py-0.5">§7-7</span>
+          <span class="text-[10px] text-slate-500">영향: 배정 품질 · 검증 반복 횟수</span>
+        </div>
+        <h3 class="font-semibold mb-2">거리 vs 균등 충돌 시 우선순위</h3>
+        <p class="text-xs text-slate-400 leading-relaxed mb-4">
+          공고가 제안사의 접근 방식을 직접 요구한 항목입니다. 두 목표를 어떻게 겹치지 않게 정의하느냐가 조정 반복 횟수를 좌우합니다.
+        </p>
+        <div class="flex gap-2 mb-3" role="group" aria-label="해석 선택">
+          <button class="ab-btn flex-1 rounded-lg px-3 py-1.5 text-xs border border-white/10 bg-white/5 text-slate-300 transition" data-ab-group="am3" data-ab="a" aria-pressed="true">A 균등=제약·거리=목적 ✓권장</button>
+          <button class="ab-btn flex-1 rounded-lg px-3 py-1.5 text-xs border border-white/10 bg-white/5 text-slate-300 transition" data-ab-group="am3" data-ab="b" aria-pressed="false">B 가중합 점수식</button>
+        </div>
+        <div class="ab-panel rounded-xl p-4 bg-slate-950/40 border border-white/10 text-xs text-slate-300 leading-relaxed" data-ab-group="am3" data-ab="a">
+          편차 상한이 파라미터 하나로 명시 보장 — 담당자에게 배정 사유를 설명 가능(XAI). 거리 손해는 시뮬레이션 평균·최대 거리로 정량 확인하며 조정.
+        </div>
+        <div class="ab-panel hidden rounded-xl p-4 bg-slate-950/40 border border-white/10 text-xs text-slate-300 leading-relaxed" data-ab-group="am3" data-ab="b">
+          가중치 w를 정해야 하는데 "편차가 몇 건까지 벌어지는가"를 보장 못함 — 검증 라운드마다 w 재조정이 반복되어 조정 3회 프레임을 위협. 기각.
+        </div>
+      </div>
+    </div>
+
+    <!-- 이전 공고 157444 비교 -->
+    <div class="rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 p-6 md:p-8">
+      <div class="flex items-start justify-between flex-wrap gap-3 mb-6">
+        <div>
+          <h3 class="font-semibold text-lg flex items-center gap-2">
+            <i data-lucide="git-compare" class="w-5 h-5 text-purple-400"></i>
+            이전 공고 157444와의 비교 — 이 재공고가 말해주는 것
+          </h3>
+          <p class="text-sm text-slate-400 mt-1">같은 발주처의 1차 공고(2026-08-06)까지 비교 분석했습니다 — 이번 분석에서 가장 가치 있는 정보원</p>
+        </div>
+        <span class="rounded-full px-3 py-1 text-xs bg-purple-500/15 border border-purple-500/25 text-purple-300">지원자 대부분이 놓치는 맥락</span>
+      </div>
+
+      <div class="overflow-x-auto mb-6">
+        <table class="w-full text-sm min-w-[640px]">
+          <thead>
+            <tr class="text-left text-xs text-slate-400 border-b border-white/10">
+              <th class="py-3 px-3">항목</th>
+              <th class="py-3 px-3">157444 (1차)</th>
+              <th class="py-3 px-3">157617 (이번)</th>
+              <th class="py-3 px-3">시사점</th>
+            </tr>
+          </thead>
+          <tbody class="text-slate-300">
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-3 text-slate-400">예산 / 기간</td>
+              <td class="py-3 px-3 font-mono">150만원 / 8일</td>
+              <td class="py-3 px-3 font-mono text-emerald-300">800만원 / 30일 <span class="text-slate-500">(5.3× / 3.75×)</span></td>
+              <td class="py-3 px-3 text-xs text-slate-400">범위 과다 → 유찰성 마감 → 재정의 재공고</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-3 text-slate-400">배정 규칙</td>
+              <td class="py-3 px-3">동일 지역 → 인접 우회 (규칙 명확)</td>
+              <td class="py-3 px-3">거리순 + 묶음 + 도 내 균등 (실데이터로 조정)</td>
+              <td class="py-3 px-3 text-xs text-amber-300">규칙 매칭 → 상충 목적의 최적화 문제로 진화</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-3 text-slate-400">규모 명시</td>
+              <td class="py-3 px-3 font-mono text-emerald-300">일 60~80건 · 평가위원 40명</td>
+              <td class="py-3 px-3 text-slate-500">미정 ("착수 전 협의")</td>
+              <td class="py-3 px-3 text-xs text-slate-400">설계 전제로 차용 가능 — 단 Q6로 재확인 (추정)</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-3 text-slate-400">DB / 연동</td>
+              <td class="py-3 px-3">DB 확인 중 · 사이트가 API 호출(수정은 발주처)</td>
+              <td class="py-3 px-3 font-mono">Oracle 확정 · 연동 방식 미명시</td>
+              <td class="py-3 px-3 text-xs text-slate-400">폴링 제안의 근거 — 소스 이관 중이던 정황</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-3 text-slate-400">회수·감사·이관</td>
+              <td class="py-3 px-3 text-slate-500">스코프 밖</td>
+              <td class="py-3 px-3 text-emerald-300">정식 범위로 승격</td>
+              <td class="py-3 px-3 text-xs text-slate-400">무검수 자동 확정의 위험을 발주처도 인지</td>
+            </tr>
+            <tr>
+              <td class="py-3 px-3 text-slate-400">일일 한도·인접 우회</td>
+              <td class="py-3 px-3">핵심 규칙 (한도 카운터·리셋)</td>
+              <td class="py-3 px-3 text-amber-300">"운영 여부 미정"으로 후퇴</td>
+              <td class="py-3 px-3 text-xs text-slate-400">규칙 체계 전면 재설계 중 — W1 워크숍이 실질 1주차 업무</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10">
+          <div class="text-xs font-mono text-purple-300 mb-1.5">도출 1</div>
+          <p class="text-xs text-slate-300 leading-relaxed">발주처는 공고 품질이 높고 학습이 빠른 협의 가능한 상대 — 1차 지원자 71명과의 문의로 실제 요구의 복잡성을 인지한 것으로 추정</p>
+        </div>
+        <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10">
+          <div class="text-xs font-mono text-purple-300 mb-1.5">도출 2</div>
+          <p class="text-xs text-slate-300 leading-relaxed">규모(일 60~80건·40명)면 알고리즘 성능은 전수 계산으로 밀리초 — 난점은 성능이 아니라 <b class="text-slate-100">정책 설계와 데이터 품질</b></p>
+        </div>
+        <div class="rounded-xl p-4 bg-slate-950/40 border border-white/10">
+          <div class="text-xs font-mono text-purple-300 mb-1.5">도출 3</div>
+          <p class="text-xs text-slate-300 leading-relaxed">"평가위원"→"전문가" 명칭 변화 — 동일 도메인 연속. 1차에서 준비된 지역 인접표 등 자료의 재활용 가능성 확인 (Q13)</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== 06 QUESTIONS — 발주자 질의 =========== -->
+  <section id="questions" class="max-w-7xl mx-auto px-6 py-20 md:py-28">
+    <div class="mb-10">
+      <div class="inline-flex items-center gap-2 text-xs font-mono text-purple-400 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" aria-hidden="true"></span>
+        06 · QUESTIONS
+        <span class="rounded-full px-2 py-0.5 bg-purple-500/20 text-purple-300 text-[10px] font-semibold">보너스 자료</span>
+      </div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">계약 전 꼭 확정하고 싶은 질문 10가지</h2>
+      <p class="mt-3 text-lg text-slate-300">전체 질의서 26문항 중 🔴 필수 우선 — 선택지 기호(A/B/C)만 주셔도 착수 워크숍 안건으로 정리해 드립니다</p>
+    </div>
+
+    <div class="rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 overflow-hidden" id="questions-accordion">
+      <details class="accordion-item" open>
+        <summary aria-label="질문 1 펼치기">
+          <span class="font-mono text-xs text-red-300 bg-red-500/10 rounded px-1.5 py-0.5 flex-shrink-0">Q1 🔴</span>
+          <span class="text-sm flex-1">배정 실행 시점은? "접수 즉시 확정"과 "근접 기업 2~3개 묶음"은 상충합니다</span>
+          <span class="text-[10px] text-slate-500 hidden md:block">엔진 아키텍처 전체 · ±1주</span>
+        </summary>
+        <div class="accordion-body">
+          <b class="text-purple-300">A</b> 일 1~2회 배치 (권장 — 묶음 품질 최상·구현 단순·조회 반영 최대 반일 지연) ·
+          <b class="text-purple-300">B</b> 준실시간 + 묶음 대기 창 N시간 ·
+          <b class="text-purple-300">C</b> 접수 즉시 단독 배정 (묶음 포기)
+        </div>
+      </details>
+      <details class="accordion-item">
+        <summary aria-label="질문 2 펼치기">
+          <span class="font-mono text-xs text-red-300 bg-red-500/10 rounded px-1.5 py-0.5 flex-shrink-0">Q2 🔴</span>
+          <span class="text-sm flex-1">신청 건을 엔진이 인지하는 방식은? (기존 시스템의 API 호출 vs 엔진의 DB 폴링)</span>
+          <span class="text-[10px] text-slate-500 hidden md:block">연동 구조 · 3자 의존도</span>
+        </summary>
+        <div class="accordion-body">
+          <b class="text-purple-300">A</b> 엔진이 기존 DB를 폴링 (권장 — 기존 시스템 코드 수정 0건, 개발사 협조 최소화) ·
+          <b class="text-purple-300">B</b> 기존 시스템이 배정 API 호출 (실시간성↑, 기존 시스템 수정 + 개발사 작업 필요)
+        </div>
+      </details>
+      <details class="accordion-item">
+        <summary aria-label="질문 3 펼치기">
+          <span class="font-mono text-xs text-red-300 bg-red-500/10 rounded px-1.5 py-0.5 flex-shrink-0">Q5 🔴</span>
+          <span class="text-sm flex-1">거리 기준은 직선 거리(하버사인)로 충분한가요?</span>
+          <span class="text-[10px] text-slate-500 hidden md:block">정확도 vs 비용·기간</span>
+        </summary>
+        <div class="accordion-body">
+          <b class="text-purple-300">A</b> 직선 거리 하버사인 (권장 — 호출 비용 0, 40명 규모에서 순위 왜곡 미미) ·
+          <b class="text-purple-300">B</b> 도로 이동 거리 (묶음×후보 조합만큼 경로 API 호출 — 비용·응답시간 증가, <span class="text-amber-300">+3~5일 옵션</span>).
+          IDistanceCalculator 인터페이스 뒤에 격리해 두어 검증 결과 필요 시에만 교체합니다.
+        </div>
+      </details>
+      <details class="accordion-item">
+        <summary aria-label="질문 4 펼치기">
+          <span class="font-mono text-xs text-red-300 bg-red-500/10 rounded px-1.5 py-0.5 flex-shrink-0">Q6 🔴</span>
+          <span class="text-sm flex-1">규모 확인: 이전 공고 기준 "일 신청 60~80건, 전문가 40명"이 이번에도 유효한가요?</span>
+          <span class="text-[10px] text-slate-500 hidden md:block">설계 전제 (R5)</span>
+        </summary>
+        <div class="accordion-body">
+          <b class="text-purple-300">A</b> 예 (현 설계 전제 유지) · <b class="text-purple-300">B</b> 아니오 → 실제 규모 기입.
+          10배 이상 차이 시 배치·성능 설계 재검토 — 견적서에 "전제 명기 + 초과 시 재협의" 조건을 제안드립니다.
+        </div>
+      </details>
+      <details class="accordion-item">
+        <summary aria-label="질문 5 펼치기">
+          <span class="font-mono text-xs text-red-300 bg-red-500/10 rounded px-1.5 py-0.5 flex-shrink-0">Q12 🔴</span>
+          <span class="text-sm flex-1">현재 기존 시스템 소스와 DB 스키마 자료는 확보되어 있나요? (1차 공고 시점 "이관 중")</span>
+          <span class="text-[10px] text-slate-500 hidden md:block">착수 가능 시점 직결</span>
+        </summary>
+        <div class="accordion-body">
+          <b class="text-purple-300">A</b> 확보 완료 · <b class="text-purple-300">B</b> 이관 중 (예상 완료 시점) · <b class="text-purple-300">C</b> 기존 개발사 경유 제공.
+          M2(데이터 매핑 정의서 승인, D7)의 전제 조건입니다.
+        </div>
+      </details>
+      <details class="accordion-item">
+        <summary aria-label="질문 6 펼치기">
+          <span class="font-mono text-xs text-red-300 bg-red-500/10 rounded px-1.5 py-0.5 flex-shrink-0">Q14 🔴</span>
+          <span class="text-sm flex-1">기존 전문가 조회 화면은 특정 테이블에 기록하면 화면 수정 없이 조회되나요?</span>
+          <span class="text-[10px] text-slate-500 hidden md:block">핵심 연동 전제 (R4)</span>
+        </summary>
+        <div class="accordion-body">
+          해당 테이블·상태값 정보를 개발사로부터 받을 수 있는지 포함. 화면 코드 수정이 필요하다면 그 작업의 주체(발주처/개발사)와 일정을 계약 전에 분리 —
+          수용 기준 "확정 직후 조회"의 검수 가능성이 여기에 걸려 있습니다.
+        </div>
+      </details>
+      <details class="accordion-item">
+        <summary aria-label="질문 7 펼치기">
+          <span class="font-mono text-xs text-red-300 bg-red-500/10 rounded px-1.5 py-0.5 flex-shrink-0">Q15 🔴</span>
+          <span class="text-sm flex-1">개발용 Oracle 인스턴스의 데이터 수준과 접속 방식은? (운영 사본/마스킹/샘플 · VPN·계정 권한)</span>
+          <span class="text-[10px] text-slate-500 hidden md:block">착수 속도 (R14)</span>
+        </summary>
+        <div class="accordion-body">
+          ENG_* 신규 테이블 생성용 <b>별도 스키마</b> 가능 여부 포함 — 착수 전 체크리스트로 드립니다.
+          주소 정제·검증 품질은 개발 인스턴스의 실데이터 수준에 직결됩니다.
+        </div>
+      </details>
+      <details class="accordion-item">
+        <summary aria-label="질문 8 펼치기">
+          <span class="font-mono text-xs text-amber-300 bg-amber-500/10 rounded px-1.5 py-0.5 flex-shrink-0">Q17 🟡</span>
+          <span class="text-sm flex-1">전문가 주소는 자택 주소인가요? 외부 지오코딩 API 전송에 개인정보 처리 제약이 있나요?</span>
+          <span class="text-[10px] text-slate-500 hidden md:block">컴플라이언스 (R9)</span>
+        </summary>
+        <div class="accordion-body">
+          <b class="text-purple-300">A</b> 제약 없음 · <b class="text-purple-300">B</b> 처리위탁 절차 필요 · <b class="text-purple-300">C</b> 외부 전송 불가.
+          C의 경우 공공 주소 API·내장 좌표 DB 대안 경로를 협의 — IGeocoder 교체점 설계로 전환 비용을 구조적으로 낮춰 두었습니다.
+        </div>
+      </details>
+      <details class="accordion-item">
+        <summary aria-label="질문 9 펼치기">
+          <span class="font-mono text-xs text-red-300 bg-red-500/10 rounded px-1.5 py-0.5 flex-shrink-0">Q21 🔴</span>
+          <span class="text-sm flex-1">검증 단계의 규칙 조정은 "검증 기간 2주 내 조정 3회"를 기본 틀로 합의할 수 있나요?</span>
+          <span class="text-[10px] text-slate-500 hidden md:block">일정 확정성 · 상호 보호 (R3)</span>
+        </summary>
+        <div class="accordion-body">
+          계약서의 "규칙 조정은 계약 범위" 조항의 실행 기준입니다. 회차마다 시뮬레이션 리포트로 조정 근거를 제공하고,
+          3회 초과 조정이 필요한 경우의 절차는 착수 시 합의를 제안드립니다.
+        </div>
+      </details>
+      <details class="accordion-item">
+        <summary aria-label="질문 10 펼치기">
+          <span class="font-mono text-xs text-amber-300 bg-amber-500/10 rounded px-1.5 py-0.5 flex-shrink-0">Q26 🟡</span>
+          <span class="text-sm flex-1">"법인사업자" 요건은 필수 조건인가요?</span>
+          <span class="text-[10px] text-slate-500 hidden md:block">지원 자격 (R6)</span>
+        </summary>
+        <div class="accordion-body">
+          <b class="text-purple-300">A</b> 필수 · <b class="text-purple-300">B</b> 역량·유지보수 체계 확인 시 협의 가능.
+          지원~미팅 단계에서 사전 확인해 최종 계약 단계의 배제 리스크를 없애고자 합니다.
+        </div>
+      </details>
+    </div>
+    <p class="mt-4 text-xs text-slate-500 text-center">전체 26문항 질의서(범위·정책 10 / 이전 공고 3 / 기술·환경 7 / 일정·운영 6)는 미팅에서 문서로 전달드립니다.</p>
+  </section>
+
+  <!-- =========== 07 RISKS — 리스크 매트릭스 =========== -->
+  <section id="risks" class="max-w-7xl mx-auto px-6 py-20 md:py-28">
+    <div class="mb-10">
+      <div class="inline-flex items-center gap-2 text-xs font-mono text-red-400 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" aria-hidden="true"></span>
+        07 · RISKS
+        <span class="rounded-full px-2 py-0.5 bg-red-500/20 text-red-300 text-[10px] font-semibold">보너스 자료</span>
+      </div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">이미 식별한 19개 리스크</h2>
+      <p class="mt-3 text-lg text-slate-300">
+        점수 6 이상 8건 중 5건이 기술이 아닌 <b class="text-slate-100">협의·계약 구조</b>에서 발생합니다 —
+        그래서 계약 전 확인(Q6·Q12·Q14·Q17·Q21·Q26)과 착수 1주차 확정(M1·M2)에 집중합니다
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div class="lg:col-span-3 rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold">확률 × 영향 매트릭스</h3>
+          <div class="flex items-center gap-3 text-xs text-slate-400">
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500" aria-hidden="true"></span>치명(7+)</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500" aria-hidden="true"></span>중(4~6)</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-500" aria-hidden="true"></span>낮음(1~3)</span>
+          </div>
+        </div>
+        <div class="relative h-80">
+          <canvas id="chart-risks" role="img" aria-label="리스크 19건의 확률-영향 산점도"></canvas>
+        </div>
+        <p class="mt-2 text-xs text-slate-500 text-center">각 점을 클릭하면 대응 전략이 우측 패널에 표시됩니다 · 겹침 방지용 미세 오프셋 적용</p>
+      </div>
+
+      <div class="lg:col-span-2 space-y-3">
+        <h3 class="font-semibold mb-3">Top 5 집중 대응</h3>
+        <div class="rounded-xl p-4 backdrop-blur-3xl bg-red-500/5 border border-red-500/20">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-xs text-red-300">R1 · 점수 9</span>
+            <span class="text-[10px] text-slate-500">외부 의존</span>
+          </div>
+          <div class="text-sm font-semibold mb-1">기존 개발사 협조 지연</div>
+          <p class="text-xs text-slate-400 leading-relaxed">스키마·기록 스펙·배포 절차 의존 → <b class="text-slate-200">DB 폴링으로 의존 최소화 + 착수 조건화</b>. 필요한 협조를 "정보 제공"으로 수렴시킴</p>
+        </div>
+        <div class="rounded-xl p-4 backdrop-blur-3xl bg-amber-500/5 border border-amber-500/20">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-xs text-amber-300">R3 · 점수 6</span>
+            <span class="text-[10px] text-slate-500">범위</span>
+          </div>
+          <div class="text-sm font-semibold mb-1">무한 조정 ("조정은 계약 범위" 무제한 해석)</div>
+          <p class="text-xs text-slate-400 leading-relaxed">2주·3회 서면 합의(Q21) + 시뮬레이션으로 조정 1회 비용 자체를 저비용화</p>
+        </div>
+        <div class="rounded-xl p-4 backdrop-blur-3xl bg-amber-500/5 border border-amber-500/20">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-xs text-amber-300">R4 · 점수 6</span>
+            <span class="text-[10px] text-slate-500">기술</span>
+          </div>
+          <div class="text-sm font-semibold mb-1">기존 조회 화면 비호환</div>
+          <p class="text-xs text-slate-400 leading-relaxed">테이블 기록만으로 조회 안 되는 경우 → 계약 전 Q14 확인(회피) + W3에 기록→조회 실증 테스트 전진 배치</p>
+        </div>
+        <div class="rounded-xl p-4 backdrop-blur-3xl bg-amber-500/5 border border-amber-500/20">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-xs text-amber-300">R10 · 점수 6</span>
+            <span class="text-[10px] text-slate-500">범위·아키텍처</span>
+          </div>
+          <div class="text-sm font-semibold mb-1">배정 실행 시점 결정 표류</div>
+          <p class="text-xs text-slate-400 leading-relaxed">즉시 확정 vs 묶음의 구조적 긴장 → 배치 기본안 조기 합의(Q1-A), M1(D5) 서면 합의 항목화</p>
+        </div>
+        <div class="rounded-xl p-4 backdrop-blur-3xl bg-amber-500/5 border border-amber-500/20">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-mono text-xs text-amber-300">R15 · 점수 6</span>
+            <span class="text-[10px] text-slate-500">품질·신뢰</span>
+          </div>
+          <div class="text-sm font-semibold mb-1">오배정의 운영 노출 (무검수 자동 확정)</div>
+          <p class="text-xs text-slate-400 leading-relaxed">검증 승인(M5) 전 운영 전환 금지 + 회수 처리·근거 이력·커밋 직전 편차 재검증의 3중 안전장치</p>
+        </div>
+      </div>
+    </div>
+
+    <details class="mt-6 rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 overflow-hidden group">
+      <summary class="cursor-pointer px-6 py-4 text-sm font-semibold flex items-center gap-2 hover:bg-white/5 transition list-none">
+        <i data-lucide="table" class="w-4 h-4 text-slate-400"></i>
+        19건 전체 리스크 표 펼치기
+        <span class="text-xs text-slate-500 font-normal ml-auto">확률·영향 각 1~3 · 점수 = 확률×영향</span>
+      </summary>
+      <div class="overflow-x-auto border-t border-white/10">
+        <table class="w-full text-xs min-w-[720px]" id="risk-full-table">
+          <thead>
+            <tr class="text-left text-slate-400 border-b border-white/10">
+              <th class="py-2.5 px-4">#</th><th class="py-2.5 px-4">리스크</th><th class="py-2.5 px-4">카테고리</th>
+              <th class="py-2.5 px-4 text-center">확률</th><th class="py-2.5 px-4 text-center">영향</th><th class="py-2.5 px-4 text-center">점수</th><th class="py-2.5 px-4">대응</th>
+            </tr>
+          </thead>
+          <tbody class="text-slate-300"><!-- JS로 채움 --></tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <!-- =========== 08 ARCHITECTURE — 4탭 (구조도/Stack ADR/API/코드) =========== -->
+  <section id="architecture" class="max-w-7xl mx-auto px-6 py-20 md:py-28">
+    <div class="mb-10">
+      <div class="inline-flex items-center gap-2 text-xs font-mono text-cyan-400 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" aria-hidden="true"></span>
+        08 · ARCHITECTURE
+        <span class="rounded-full px-2 py-0.5 bg-cyan-500/20 text-cyan-300 text-[10px] font-semibold">보너스 자료</span>
+      </div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">이미 설계가 끝났습니다</h2>
+      <p class="mt-3 text-lg text-slate-300">
+        EPM 요구분석(유스케이스 11+3종, 시스템 규칙 77개) + RSM 도메인 설계 + 테이블 9종·API 9종 — 지원 시점에 완료
+      </p>
+    </div>
+
+    <div class="rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 overflow-hidden">
+      <div class="flex border-b border-white/10 overflow-x-auto" role="tablist" id="arch-tabs" aria-label="아키텍처 상세 탭">
+        <button class="arch-tab-trigger flex-1 min-w-[120px] px-6 py-4 font-semibold text-sm text-cyan-400 bg-white/5 border-b-2 border-cyan-400" data-tab="diagram" role="tab" aria-selected="true">구조도</button>
+        <button class="arch-tab-trigger flex-1 min-w-[120px] px-6 py-4 font-semibold text-sm text-slate-400 border-b-2 border-transparent hover:text-slate-200" data-tab="stack" role="tab" aria-selected="false">Stack ADR</button>
+        <button class="arch-tab-trigger flex-1 min-w-[120px] px-6 py-4 font-semibold text-sm text-slate-400 border-b-2 border-transparent hover:text-slate-200" data-tab="api" role="tab" aria-selected="false">API 미리보기</button>
+        <button class="arch-tab-trigger flex-1 min-w-[120px] px-6 py-4 font-semibold text-sm text-slate-400 border-b-2 border-transparent hover:text-slate-200" data-tab="code" role="tab" aria-selected="false">코드 스니펫</button>
+      </div>
+
+      <!-- Tab 1: 구조도 -->
+      <div class="arch-tab-panel p-6 md:p-8" data-panel="diagram">
+        <div class="mb-4 text-sm text-slate-400">배치 관점 — DB 폴링 무접촉 연동 · 단일 워커 직렬 · 유일한 기존 테이블 쓰기 지점 1곳</div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          <div class="rounded-2xl px-5 py-4 bg-purple-500/10 border border-purple-500/30 flex items-center gap-3">
+            <i data-lucide="clock" class="w-5 h-5 text-purple-300 flex-shrink-0"></i>
+            <div>
+              <div class="font-semibold text-sm">배정 스케줄러</div>
+              <div class="text-xs text-slate-400 mt-0.5 font-mono">Spring @Scheduled · 일 1~2회 (BS0001) · REGULAR/MANUAL</div>
+            </div>
+          </div>
+          <div class="rounded-2xl px-5 py-4 bg-purple-500/10 border border-purple-500/30 flex items-center gap-3">
+            <i data-lucide="user-cog" class="w-5 h-5 text-purple-300 flex-shrink-0"></i>
+            <div>
+              <div class="font-semibold text-sm">담당자 (관리 API / CSV)</div>
+              <div class="text-xs text-slate-400 mt-0.5 font-mono">대기·회수·근거·보정·이관·시뮬레이션 — API Key + IP 허용 목록</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col items-center my-2" aria-hidden="true">
+          <i data-lucide="arrow-down" class="w-4 h-4 text-slate-600"></i>
+          <div class="text-[10px] font-mono text-slate-500 mt-1">assign1001 / assign1002~4 · geo · migrate · sim (REST)</div>
+        </div>
+
+        <div class="rounded-2xl p-5 bg-cyan-500/5 border border-cyan-500/30 shadow-lg shadow-cyan-500/10">
+          <div class="flex items-center justify-center gap-2 text-xs font-mono text-cyan-400 mb-4">
+            <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+            배정 엔진 — Spring Boot 3 독립 서비스 (기존 WAS 무접촉 · 내장 Tomcat)
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+            <div class="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-center">
+              <div class="text-xs font-semibold">AssignmentEngine</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">선별→좌표→묶음→선정→확정 오케스트레이션</div>
+            </div>
+            <div class="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-center">
+              <div class="text-xs font-semibold">GeocodingHandler</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">정제→변환 · 캐시 미스만 호출 (BS0002)</div>
+            </div>
+            <div class="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-center">
+              <div class="text-xs font-semibold">BundlingHandler</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">그리디 근접 묶음 2~3건 (BS0031~33)</div>
+            </div>
+            <div class="rounded-lg px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 text-center">
+              <div class="text-xs font-semibold text-emerald-300">DistributionRegulator</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">균등=제약 · 거리=목적 (BS0034~35)</div>
+            </div>
+            <div class="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-center">
+              <div class="text-xs font-semibold">CounterManager (702)</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">전문가×연월 FOR UPDATE 증감</div>
+            </div>
+            <div class="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-center">
+              <div class="text-xs font-semibold">HistoryManager (703)</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">근거 이력 추가 전용 (BS0008)</div>
+            </div>
+            <div class="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-center">
+              <div class="text-xs font-semibold">AssignmentValidator</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">단일 실행·멱등·회수 선행조건</div>
+            </div>
+            <div class="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-center">
+              <div class="text-xs font-semibold font-mono">haversine (701)</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">거리 m 정수 · 근접순 정렬 순수함수</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-center gap-2 text-[10px] font-mono text-slate-500">
+            실현 교체점: IGeocoder (카카오↔행안부↔모킹) · IDistanceCalculator (직선→도로 거리 확장)
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 my-2 items-center" aria-hidden="true">
+          <div class="flex flex-col items-center">
+            <i data-lucide="arrow-down" class="w-4 h-4 text-slate-600"></i>
+            <div class="text-[10px] font-mono text-slate-500 mt-1">JDBC — 단일 워커 직렬 + SELECT FOR UPDATE + 유니크 제약</div>
+          </div>
+          <div class="flex flex-col items-center px-6">
+            <i data-lucide="arrow-right" class="w-4 h-4 text-slate-600 hidden md:block"></i>
+            <div class="text-[10px] font-mono text-slate-500 mt-1">HTTPS</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="md:col-span-2 rounded-xl p-4 bg-emerald-500/5 border border-emerald-500/30">
+            <div class="flex items-center gap-2 mb-3">
+              <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
+              <span class="font-semibold text-sm">기존 Oracle DB — 운영 테이블 변경 최소화</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div class="rounded-lg p-3 bg-slate-950/40 border border-white/10">
+                <div class="font-mono text-emerald-300 mb-1.5">기존 테이블 (가칭 · 착수 시 실명 매핑)</div>
+                <ul class="space-y-1 text-slate-300 font-mono text-[11px]">
+                  <li>EXT_APPLY — 신청 <span class="text-slate-500">(SELECT만 — 폴링)</span></li>
+                  <li>EXT_COMPANY — 기업 <span class="text-slate-500">(SELECT만)</span></li>
+                  <li>EXT_EXPERT — 전문가 <span class="text-slate-500">(SELECT만)</span></li>
+                  <li class="text-amber-300">EXT_ASSIGN — 배정 <span class="text-slate-500">(INSERT/UPDATE — 유일한 쓰기 지점)</span></li>
+                </ul>
+              </div>
+              <div class="rounded-lg p-3 bg-slate-950/40 border border-white/10">
+                <div class="font-mono text-cyan-300 mb-1.5">신규 ENG_* 9종 (별도 스키마 · FK 미설정 느슨한 참조)</div>
+                <ul class="space-y-0.5 text-slate-300 font-mono text-[11px]">
+                  <li>ENG_CASE_STATE · ENG_BUNDLE(+ITEM)</li>
+                  <li>ENG_GEOCODE_CACHE <span class="text-slate-500">(정제주소 UQ)</span></li>
+                  <li>ENG_ADDR_FIX · ENG_COUNTER <span class="text-slate-500">(전문가×연월 PK)</span></li>
+                  <li>ENG_ASSIGN_LOG <span class="text-slate-500">(추가 전용)</span> · ENG_PARAM</li>
+                  <li>ENG_JOB_RUN <span class="text-slate-500">(RUNNING 함수기반 유니크)</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="mt-3 text-[10px] text-slate-500">↓ 기존 조회 화면이 EXT_ASSIGN을 읽음 — 커밋 즉시 전문가 조회 가능 (화면은 범위 밖)</div>
+          </div>
+          <div class="rounded-xl p-4 bg-amber-500/5 border border-amber-500/30">
+            <div class="flex items-center gap-2 mb-3">
+              <i data-lucide="cloud" class="w-4 h-4 text-amber-400"></i>
+              <span class="font-semibold text-sm">외부 지오코딩 (제안)</span>
+            </div>
+            <ul class="space-y-1.5 text-xs text-slate-300">
+              <li class="flex items-center gap-1.5"><span class="w-1 h-1 rounded-full bg-amber-400" aria-hidden="true"></span>행안부 주소정제 API (juso.go.kr — 정제)</li>
+              <li class="flex items-center gap-1.5"><span class="w-1 h-1 rounded-full bg-amber-400" aria-hidden="true"></span>카카오 로컬 API (좌표 — 주)</li>
+              <li class="flex items-center gap-1.5"><span class="w-1 h-1 rounded-full bg-amber-400" aria-hidden="true"></span>무료 쿼터 내 (일 수십 건 규모)</li>
+              <li class="flex items-center gap-1.5"><span class="w-1 h-1 rounded-full bg-amber-400" aria-hidden="true"></span>재시도·쿼터 이월 (BS0024~25)</li>
+            </ul>
+            <div class="mt-3 text-[10px] text-slate-500">개인정보 제약 시(Q17) 공공 API·내장 좌표 DB로 IGeocoder 교체</div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] text-slate-500">
+          <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-purple-500/40" aria-hidden="true"></span>트리거·담당자</div>
+          <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-cyan-500/40" aria-hidden="true"></span>배정 엔진 (신규)</div>
+          <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-emerald-500/40" aria-hidden="true"></span>기존 Oracle + ENG_*</div>
+          <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded bg-amber-500/40" aria-hidden="true"></span>외부 API</div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Stack ADR -->
+      <div class="arch-tab-panel hidden p-6 md:p-8" data-panel="stack">
+        <div class="overflow-x-auto mb-8">
+          <table class="w-full text-sm min-w-[640px]">
+            <thead>
+              <tr class="text-left text-xs text-slate-400 border-b border-white/10">
+                <th class="py-3 px-2">계층</th><th class="py-3 px-2">선택</th><th class="py-3 px-2">근거</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-300 text-xs md:text-sm">
+              <tr class="border-b border-white/5"><td class="py-2.5 px-2 text-slate-400">언어</td><td class="py-2.5 px-2 font-mono">Java 17 (LTS)</td><td class="py-2.5 px-2">기존 시스템과 동일 계열 — 발주처 개발사 유지보수 승계 용이</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2.5 px-2 text-slate-400">프레임워크</td><td class="py-2.5 px-2 font-mono">Spring Boot 3.x</td><td class="py-2.5 px-2">내장 Tomcat 독립 서비스 — 기존 WAS 무접촉 배포</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2.5 px-2 text-slate-400">DB 접근</td><td class="py-2.5 px-2 font-mono">MyBatis + Spring JDBC</td><td class="py-2.5 px-2">SELECT FOR UPDATE·유니크 제약 등 SQL 직접 제어, 기존 스키마 매핑 자유도</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2.5 px-2 text-slate-400">스케줄러</td><td class="py-2.5 px-2 font-mono">@Scheduled + ENG_JOB_RUN 잠금</td><td class="py-2.5 px-2">단일 인스턴스·일 배치 규모에 Quartz 과잉 — DB 유니크로 중복 기동 차단</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2.5 px-2 text-slate-400">지오코딩</td><td class="py-2.5 px-2 font-mono">행안부 → 카카오 2단</td><td class="py-2.5 px-2">국내 주소 정확도 · 무료 쿼터 · IGeocoder로 교체·모킹 가능</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2.5 px-2 text-slate-400">엑셀 처리</td><td class="py-2.5 px-2 font-mono">Apache POI</td><td class="py-2.5 px-2">실적 이관 — 드라이런·합계 대사·전량 미반영 원칙 (BS0064)</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2.5 px-2 text-slate-400">인증</td><td class="py-2.5 px-2 font-mono">API Key + IP 허용 목록</td><td class="py-2.5 px-2">내부망 담당자 1~2인 — 과잉 설계 배제, 화면 도입 시 세션/JWT 확장</td></tr>
+              <tr><td class="py-2.5 px-2 text-slate-400">캐시</td><td class="py-2.5 px-2 font-mono">ENG_GEOCODE_CACHE 테이블</td><td class="py-2.5 px-2">일 60~80건(추정) 규모 — Redis 불요</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4 class="font-semibold text-sm mb-4 flex items-center gap-2"><i data-lucide="file-check-2" class="w-4 h-4 text-cyan-400"></i>핵심 결정 기록 (ADR)</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="rounded-xl p-5 bg-slate-950/40 border border-white/10">
+            <div class="font-mono text-xs text-cyan-300 mb-1.5">ADR-001 · 배정 엔진 언어</div>
+            <div class="text-sm font-semibold mb-2">Java 17 + Spring Boot 3 — Python·Kotlin 기각</div>
+            <p class="text-xs text-slate-400 leading-relaxed">Python+FastAPI는 운영 이질성(기존 Java+Oracle 환경에 이질 스택 추가), Kotlin은 국내 유지보수 인력 풀 제한으로 기각. "추후 유지보수 의뢰" 희망 조건에서 인수인계 리스크 최소가 최우선.</p>
+          </div>
+          <div class="rounded-xl p-5 bg-slate-950/40 border border-white/10">
+            <div class="font-mono text-xs text-cyan-300 mb-1.5">ADR-002 · 신청 인지 방식</div>
+            <div class="text-sm font-semibold mb-2">DB 폴링 — 기존 시스템 코드 수정 0건</div>
+            <p class="text-xs text-slate-400 leading-relaxed">기존 시스템의 API 호출 방식은 개발사 수정·배포 일정에 종속(R1). 폴링 주기=배치 주기이므로 실시간성 손실 없음. 기존 화면과의 접점은 "EXT_ASSIGN 기록 스펙" 하나로 수렴.</p>
+          </div>
+          <div class="rounded-xl p-5 bg-slate-950/40 border border-white/10">
+            <div class="font-mono text-xs text-cyan-300 mb-1.5">ADR-003 · 동시성 제어</div>
+            <div class="text-sm font-semibold mb-2">3중 방어 — 직렬화 + 잠금 + 제약</div>
+            <p class="text-xs text-slate-400 leading-relaxed">① 단일 워커 + ENG_JOB_RUN 함수기반 유니크(RUNNING 1건 — ORA-00001 즉시 차단) ② 고정 순서 FOR UPDATE(CASE→ASSIGN→COUNTER, 교착 방지) + 커밋 직전 편차 재검증 ③ 활성 배정 1건 유니크 + BUNDLE_ITEM.case_id 유니크 — 코드 결함까지 DB가 최종 차단. 분산 락·메시지 큐는 규모상 과잉으로 배제.</p>
+          </div>
+          <div class="rounded-xl p-5 bg-slate-950/40 border border-white/10">
+            <div class="font-mono text-xs text-cyan-300 mb-1.5">ADR-004 · 거리 연산</div>
+            <div class="text-sm font-semibold mb-2">애플리케이션 레벨 하버사인 — 공간 DB 미사용</div>
+            <p class="text-xs text-slate-400 leading-relaxed">공고 전제("지리 연산 전용 DB 옵션 미사용") 준수. 40명 규모 전수 계산은 밀리초 단위. 도로 이동 거리는 IDistanceCalculator 뒤에 격리 — 검증 결과 필요 시에만 +3~5일 옵션으로 교체.</p>
+          </div>
+          <div class="rounded-xl p-5 bg-slate-950/40 border border-white/10">
+            <div class="font-mono text-xs text-cyan-300 mb-1.5">ADR-005 · 규칙 관리</div>
+            <div class="text-sm font-semibold mb-2">코드가 아닌 ENG_PARAM 설정 파라미터</div>
+            <p class="text-xs text-slate-400 leading-relaxed">묶음 반경·허용 편차·실행 주기를 설정값으로 — "조정은 계약 범위" 조항 하에서 조정 1회 비용을 재배포가 아닌 값 변경으로 낮춤. 파라미터 스냅샷을 근거 이력에 함께 기록해 감사 정합 유지(BS0046).</p>
+          </div>
+          <div class="rounded-xl p-5 bg-slate-950/40 border border-white/10">
+            <div class="font-mono text-xs text-cyan-300 mb-1.5">ADR-006 · 운영 테이블 보호</div>
+            <div class="text-sm font-semibold mb-2">ENG_* 별도 스키마 격리 — 기존 ALTER 0건</div>
+            <p class="text-xs text-slate-400 leading-relaxed">신규 데이터 전부 ENG_* 9종으로 격리, FK 미설정 느슨한 참조로 운영 영향 차단. 기존 테이블 쓰기는 EXT_ASSIGN INSERT/UPDATE 한 지점 — 산업은행 EKP 운영 DB 직접 기록 경험에서 나온 관행.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: API 미리보기 -->
+      <div class="arch-tab-panel hidden p-6 md:p-8" data-panel="api">
+        <div class="mb-4 text-sm text-slate-400">엔드포인트 9종 — 대기·회수·근거·보정·이관·시뮬레이션이 전부 REST로 이번 범위에 포함 (API-first)</div>
+        <div class="overflow-x-auto mb-6">
+          <table class="w-full text-xs md:text-sm min-w-[680px] font-mono">
+            <thead>
+              <tr class="text-left text-xs text-slate-400 border-b border-white/10 font-sans">
+                <th class="py-2.5 px-2">Method</th><th class="py-2.5 px-2">Path</th><th class="py-2.5 px-2 font-sans">설명</th><th class="py-2.5 px-2">인증</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-300">
+              <tr class="border-b border-white/5"><td class="py-2 px-2 text-emerald-300">POST</td><td class="py-2 px-2">/api/v1/assignments/run</td><td class="py-2 px-2 font-sans text-slate-400">배정 배치 수동 기동 (정규는 스케줄러)</td><td class="py-2 px-2 text-slate-500">API Key</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2 px-2 text-cyan-300">GET</td><td class="py-2 px-2">/api/v1/assignments/waiting</td><td class="py-2 px-2 font-sans text-slate-400">대기 건 목록 (사유 포함 · CSV 옵션)</td><td class="py-2 px-2 text-slate-500">API Key</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2 px-2 text-emerald-300">POST</td><td class="py-2 px-2">/api/v1/assignments/{caseId}/recall</td><td class="py-2 px-2 font-sans text-slate-400">배정 회수 (사유 필수 · 카운터 차감 트랜잭션)</td><td class="py-2 px-2 text-slate-500">API Key</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2 px-2 text-cyan-300">GET</td><td class="py-2 px-2">/api/v1/assignments/logs</td><td class="py-2 px-2 font-sans text-slate-400">배정 근거 이력 (기간 필수 · 페이징)</td><td class="py-2 px-2 text-slate-500">API Key</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2 px-2 text-cyan-300">GET</td><td class="py-2 px-2">/api/v1/addresses/failures</td><td class="py-2 px-2 font-sans text-slate-400">실패 주소 목록 (CSV 다운로드)</td><td class="py-2 px-2 text-slate-500">API Key</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2 px-2 text-emerald-300">POST</td><td class="py-2 px-2">/api/v1/addresses/fixes</td><td class="py-2 px-2 font-sans text-slate-400">보정 주소 등록 (CSV 업로드/JSON)</td><td class="py-2 px-2 text-slate-500">API Key</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2 px-2 text-emerald-300">POST</td><td class="py-2 px-2">/api/v1/migrations/excel</td><td class="py-2 px-2 font-sans text-slate-400">엑셀 실적 이관 (드라이런/확정 모드)</td><td class="py-2 px-2 text-slate-500">API Key</td></tr>
+              <tr class="border-b border-white/5"><td class="py-2 px-2 text-emerald-300">POST</td><td class="py-2 px-2">/api/v1/simulations</td><td class="py-2 px-2 font-sans text-slate-400">배정 시뮬레이션 (파라미터 오버라이드 · 무변경)</td><td class="py-2 px-2 text-slate-500">API Key</td></tr>
+              <tr><td class="py-2 px-2 text-cyan-300">GET</td><td class="py-2 px-2">/api/v1/health</td><td class="py-2 px-2 font-sans text-slate-400">헬스체크 · 최근 실행 상태 (ENG_JOB_RUN)</td><td class="py-2 px-2 text-slate-500">IP 제한</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="rounded-xl bg-slate-950/60 border border-white/10 overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-white/10 text-xs font-mono text-slate-400">POST /api/v1/simulations — Request</div>
+            <pre class="p-4 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">{
+  "period": { "from": "2026-06-01", "to": "2026-06-30" },
+  "paramOverride": {
+    "bundleRadiusKm": 5,
+    "allowedDeviation": 2,
+    "soloAssignAllowed": true
+  },
+  "compareWithManual": true
+}</pre>
+          </div>
+          <div class="rounded-xl bg-slate-950/60 border border-white/10 overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-white/10 text-xs font-mono text-slate-400">200 OK — Response (발췌)</div>
+            <pre class="p-4 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">{
+  "runId": 1042,
+  "summary": {
+    "targetCases": 1520, "confirmed": 1444, "waiting": 76,
+    "manualMatchRate": 0.87, "avgDistanceKm": 6.2,
+    "maxDeviation": 2
+  },
+  "byExpert": [
+    { "expertId": 7, "province": "경기",
+      "assigned": 38, "avgDistanceKm": 5.1 }
+  ],
+  "reportCsvUrl": "/api/v1/simulations/1042/report"
+}</pre>
+          </div>
+        </div>
+        <p class="mt-4 text-xs text-slate-500">에러: 400(기간·파라미터 검증) · 409(배정 배치 실행 중 — BS0042) · 401(키 불일치). 시뮬레이션은 운영 로직에서 쓰기 단계만 치환 — 검증-운영 로직 동일성이 구조로 보장됩니다 (BS0075).</p>
+      </div>
+
+      <!-- Tab 4: 코드 스니펫 -->
+      <div class="arch-tab-panel hidden p-6 md:p-8" data-panel="code">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div class="flex items-center gap-2 text-sm">
+            <i data-lucide="file-code-2" class="w-4 h-4 text-cyan-400"></i>
+            <span class="font-mono text-slate-300">domain/behaviors.ts</span>
+            <span class="text-xs text-slate-500">— RSM 행위 모델 상단 발췌 (총 604줄)</span>
+          </div>
+          <span class="text-xs text-slate-500">후행조건 → 선행조건 → 불변식 순 명세 · 구현 전 계약</span>
+        </div>
+        <pre class="rounded-xl !bg-slate-950/80 !p-4 text-xs overflow-x-auto"><code class="language-typescript">/**
+ * =============================================================================
+ * behaviors.ts — 행위 모델 (RSM 8~9장)
+ * =============================================================================
+ * 목적: 유스케이스·오퍼레이션·상태기계를 정의한다.
+ *  - 결과중심적 사고: 각 행위는 후행조건 → 선행조건 → 행위불변식 순으로 명세
+ *  - 요구정보는 '내역(Detail)' 접미어 타입으로 정형화 ({전송}/{수신} → Protocol)
+ *  - 신청 건 질적상태 상태기계: 2_유스케이스리스트 상태 정의의 전이 맵
+ *  - 명세 방식: 담당자 API(외부)는 방어적(예외), 엔진 내부 단계는 선언적(assert)
+ * =============================================================================
+ */
+
+import {
+  CaseState,
+  WaitReason,
+  RunMode,
+  CounterMode,
+  FixStatus,
+  LogEventType,
+  CandidateSnapshot,
+  RuleParameters,
+  Case,
+} from "./instances";
+
+/* =============================================================================
+ * 1. 액터 (대리 관계 계층 — 0_시스템목표 액터 목록)
+ * ========================================================================== */
+
+export enum Actor {
+  MANAGER = "MANAGER",                 // 담당자 — 1차 의뢰자 (대기·회수·보정·이관·시뮬레이션)
+  EXPERT = "EXPERT",                   // 전문가 — 최종사용자 (기존 화면 조회, 범위 밖 접점)
+  SCHEDULER = "SCHEDULER",             // 배정 스케줄러 — 시스템 액터 (배정 주기 기동 — BS0001)
+  LEGACY_SYSTEM = "LEGACY_SYSTEM",     // 기존 관리시스템 — 2차 의뢰자 (Oracle, 조회 화면)
+  GEOCODING_SERVICE = "GEOCODING_SERVICE", // 지오코딩 서비스 — 2차 의뢰자 (카카오+행안부 — BS0024)
+}
+
+/* =============================================================================
+ * 2. 요구정보 — '내역(Detail)' 타입 (폼 = 요구정보 + 수행결과)
+ * ========================================================================== */
+
+/** 배정 실행 기동내역 (assign1001 {전송} — 모델11) */
+export interface RunStartDetail {
+  readonly mode: RunMode;    // 값 작성 (REGULAR/MANUAL)
+  readonly runDate: string;  // 값 작성 (실행 기준일 YYYY-MM-DD)
+}</code></pre>
+        <p class="mt-3 text-xs text-slate-500">정답 코드가 아니라 "설계 완료의 증거"입니다 — 유스케이스 11+공용 3종 전체가 이 형식으로 명세되어 있고, 구현 시 Java record(*Detail/*Result DTO)로 그대로 옮겨집니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== 09 TIMELINE — W1~W5 간트 + M1~M6 =========== -->
+  <section id="timeline" class="max-w-7xl mx-auto px-6 py-20 md:py-28">
+    <div class="mb-10">
+      <div class="inline-flex items-center gap-2 text-xs font-mono text-emerald-400 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
+        09 · TIMELINE
+        <span class="rounded-full px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold">보너스 자료</span>
+      </div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">30일 주차별 실행 계획</h2>
+      <p class="mt-3 text-lg text-slate-300">
+        규칙 확정 지연에도 무너지지 않게 — 검증(P3)과 개발(P2)을 겹쳐 배치하고, 규칙 무관 작업(P1)을 선행하는 완충 구조
+      </p>
+    </div>
+
+    <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 overflow-hidden">
+      <div class="overflow-x-auto">
+        <div class="min-w-[860px]">
+          <!-- Week headers -->
+          <div class="grid gap-1 mb-3 text-xs text-slate-500" style="grid-template-columns: 200px repeat(30, 1fr);">
+            <div></div>
+            <div class="text-center font-mono" style="grid-column: 2 / 9;">W1 <span class="text-slate-600">D1~7</span></div>
+            <div class="text-center font-mono" style="grid-column: 9 / 16;">W2 <span class="text-slate-600">D8~14</span></div>
+            <div class="text-center font-mono" style="grid-column: 16 / 23;">W3 <span class="text-slate-600">D15~21</span></div>
+            <div class="text-center font-mono" style="grid-column: 23 / 30;">W4 <span class="text-slate-600">D22~28</span></div>
+            <div class="text-center font-mono" style="grid-column: 30 / 32;">W5</div>
+          </div>
+
+          <!-- Phase bars -->
+          <div class="space-y-2">
+            <div class="grid gap-1 items-center" style="grid-template-columns: 200px repeat(30, 1fr);">
+              <div class="text-xs text-slate-300 pr-3">P0 착수·규칙 확정 <span class="text-slate-600 block text-[10px]">워크숍·스키마 분석·DDL 검토</span></div>
+              <div class="gantt-bar" style="grid-column: 2 / 7; background: linear-gradient(90deg, rgba(251,191,36,0.7), rgba(251,191,36,0.45));" title="D1~D5 · 규칙 워크숍(반일), EXT_* 실명 매핑, ENG_* DDL DBA 검토, 카카오/행안부 API 키"></div>
+            </div>
+            <div class="grid gap-1 items-center" style="grid-template-columns: 200px repeat(30, 1fr);">
+              <div class="text-xs text-slate-300 pr-3">P1 데이터 기반 <span class="text-slate-600 block text-[10px]">정제·지오코딩·이관·폴링 (규칙 무관 — 완충)</span></div>
+              <div class="gantt-bar gantt-bar-p1" style="grid-column: 5 / 14;" title="D4~D12 · 주소 정제 파이프라인, ENG_GEOCODE_CACHE, 엑셀 이관 드라이런, 폴링·선별 + 테스트(정제 케이스 20종+)"></div>
+            </div>
+            <div class="grid gap-1 items-center" style="grid-template-columns: 200px repeat(30, 1fr);">
+              <div class="text-xs text-slate-300 pr-3">P2 배정 엔진 코어 <span class="text-slate-600 block text-[10px]">묶음·선정·확정 트랜잭션·회수</span></div>
+              <div class="gantt-bar gantt-bar-p2" style="grid-column: 11 / 20;" title="D10~D18 · BundlingHandler, DistributionRegulator, 3중 방어 확정, 회수·대기 + 선정 시나리오 30종·동시성 경합 테스트"></div>
+            </div>
+            <div class="grid gap-1 items-center" style="grid-template-columns: 200px repeat(30, 1fr);">
+              <div class="text-xs text-slate-300 pr-3">P3 검증·조정 <span class="text-slate-600 block text-[10px]">시뮬레이션 · 조정 3회 (발주처 협업)</span></div>
+              <div class="gantt-bar gantt-bar-p3" style="grid-column: 17 / 27;" title="D16~D25 · SimulationRunner, 회차별 리포트 3부, 파라미터 확정 — P2와 겹침 배치로 피드백 대기 공백 제거"></div>
+            </div>
+            <div class="grid gap-1 items-center" style="grid-template-columns: 200px repeat(30, 1fr);">
+              <div class="text-xs text-slate-300 pr-3">P4 배포·전환 <span class="text-slate-600 block text-[10px]">운영 배포·첫 배치·인계</span></div>
+              <div class="gantt-bar gantt-bar-p4" style="grid-column: 25 / 32;" title="D24~D30 · 무중단 독립 서비스 기동, 실적 확정 이관, 연동 검증 체크리스트, 산출물 5종 인계"></div>
+            </div>
+          </div>
+
+          <!-- Milestones -->
+          <div class="mt-6 pt-4 border-t border-white/10">
+            <div class="grid gap-1 items-center" style="grid-template-columns: 200px repeat(30, 1fr);">
+              <div class="text-xs text-slate-400 font-semibold">마일스톤</div>
+              <div class="milestone-marker" style="grid-column: 6;" title="M1 (D5) 규칙 파라미터 초안 확정 — 묶음·편차·실행 시점·거리 기준 서면 합의">1</div>
+              <div class="milestone-marker" style="grid-column: 8;" title="M2 (D7) 데이터 매핑 정의서 승인 — EXT_ASSIGN 기록 스펙 기존 개발사 확인">2</div>
+              <div class="milestone-marker" style="grid-column: 13;" title="M3 (D12) 전체 주소 좌표화 + 이관 드라이런 — 실패율 리포트·대사 검증 통과">3</div>
+              <div class="milestone-marker" style="grid-column: 19;" title="M4 (D18) 배정 엔진 E2E + 동시성 통과 — 개발 환경 배치 1회전 성공">4</div>
+              <div class="milestone-marker" style="grid-column: 26;" title="M5 (D25) 검증 완료·규칙 확정 — 조정 3회 리포트, 발주처 승인">5</div>
+              <div class="milestone-marker" style="grid-column: 31;" title="M6 (D30) 운영 전환·검수 — 운영 첫 배치 + 기존 화면 조회 확인 + 산출물 인계">6</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-4 border-t border-white/10 flex flex-wrap gap-4 text-xs">
+        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded" style="background: rgba(251,191,36,0.6)" aria-hidden="true"></span>P0 착수·규칙 확정</span>
+        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-purple-500/60" aria-hidden="true"></span>P1 데이터 기반</span>
+        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-pink-500/60" aria-hidden="true"></span>P2 엔진 코어</span>
+        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-emerald-500/60" aria-hidden="true"></span>P3 검증·조정</span>
+        <span class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-cyan-500/60" aria-hidden="true"></span>P4 배포·전환</span>
+        <span class="flex items-center gap-2"><span class="milestone-marker !w-4 !h-4 !text-[8px]">M</span>마일스톤 (호버 시 완료 기준)</span>
+      </div>
+    </div>
+
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center gap-2 mb-2"><i data-lucide="eye" class="w-4 h-4 text-emerald-400"></i><span class="font-semibold text-sm">W2 말 — 실데이터 좌표화 리포트</span></div>
+        <p class="text-xs text-slate-400 leading-relaxed">실제 주소 데이터의 변환 성공률·실패 유형을 실물로 확인 — 정제 규칙 방향 합의 (문서 보고가 아닌 동작물)</p>
+      </div>
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center gap-2 mb-2"><i data-lucide="play-circle" class="w-4 h-4 text-emerald-400"></i><span class="font-semibold text-sm">W3 말 — 배정 엔진 시연</span></div>
+        <p class="text-xs text-slate-400 leading-relaxed">선별→묶음→선정→확정이 실데이터로 도는 모습과 배정 근거 이력을 개발 환경 E2E로 참관</p>
+      </div>
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center gap-2 mb-2"><i data-lucide="file-bar-chart-2" class="w-4 h-4 text-emerald-400"></i><span class="font-semibold text-sm">W4 — 회차별 시뮬레이션 리포트 ×3</span></div>
+        <p class="text-xs text-slate-400 leading-relaxed">수기 일치율·편차·이동 거리로 파라미터 확정 판단 — 회차별 1시간×3 참여로 충분</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== 10 WHY-US — 차별화 비교표 =========== -->
+  <section id="why-us" class="max-w-7xl mx-auto px-6 py-20 md:py-28">
+    <div class="mb-10 text-center">
+      <div class="text-xs font-mono text-purple-400 mb-3">10 · WHY US</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">지원자 58명 중, 이렇게 다릅니다</h2>
+      <p class="mt-3 text-lg text-slate-300 max-w-2xl mx-auto">지원 시점에 이미 만들어 둔 것들 — 착수 워크숍에 백지가 아닌 구체안으로 들어갑니다</p>
+    </div>
+
+    <div class="rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 overflow-hidden">
+      <div class="overflow-x-auto">
+        <div class="grid grid-cols-[1fr_auto_auto] gap-0 text-sm min-w-[640px]">
+          <div class="px-6 py-4 border-b border-white/10 font-semibold text-slate-400">차별화 포인트</div>
+          <div class="px-6 py-4 border-b border-white/10 font-semibold text-purple-400 text-center w-36 bg-purple-500/10">이 제안</div>
+          <div class="px-6 py-4 border-b border-white/10 font-semibold text-slate-500 text-center w-36">일반 지원자</div>
+
+          <div class="px-6 py-4 border-b border-white/5">
+            <div class="font-medium">이전 공고 157444까지 비교 분석</div>
+            <div class="text-xs text-slate-500 mt-0.5">규모 전제(일 60~80건·40명 추정)·범위 진화 맥락·미정으로 후퇴한 규칙까지 파악</div>
+          </div>
+          <div class="px-6 py-4 border-b border-white/5 text-center bg-purple-500/5"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 inline"></i></div>
+          <div class="px-6 py-4 border-b border-white/5 text-center"><i data-lucide="x-circle" class="w-5 h-5 text-slate-600 inline"></i></div>
+
+          <div class="px-6 py-4 border-b border-white/5">
+            <div class="font-medium">모델링 기반 설계 완료 — 착수 즉시 개발</div>
+            <div class="text-xs text-slate-500 mt-0.5">유스케이스 11+공용 3종 · 시스템 규칙 77개 · 상태기계 · ENG_* 테이블 9종 · API 9종 · 패키지 구조</div>
+          </div>
+          <div class="px-6 py-4 border-b border-white/5 text-center bg-purple-500/5"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 inline"></i></div>
+          <div class="px-6 py-4 border-b border-white/5 text-center"><i data-lucide="x-circle" class="w-5 h-5 text-slate-600 inline"></i></div>
+
+          <div class="px-6 py-4 border-b border-white/5">
+            <div class="font-medium">DB 폴링 무접촉 연동 — 기존 코드 수정 0건</div>
+            <div class="text-xs text-slate-500 mt-0.5">기존 개발사 협조를 "스키마 정보 제공"으로 최소화 — 최고점 리스크 R1의 구조적 완화</div>
+          </div>
+          <div class="px-6 py-4 border-b border-white/5 text-center bg-purple-500/5"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 inline"></i></div>
+          <div class="px-6 py-4 border-b border-white/5 text-center"><span class="text-xs text-slate-600">API 호출 가정</span></div>
+
+          <div class="px-6 py-4 border-b border-white/5">
+            <div class="font-medium">검증 프레임 제시 — 시뮬레이션 2주·조정 3회</div>
+            <div class="text-xs text-slate-500 mt-0.5">"조정은 계약 범위" 조항을 양쪽 모두 감당 가능하게 만드는 서면 기준 + 드라이런 API</div>
+          </div>
+          <div class="px-6 py-4 border-b border-white/5 text-center bg-purple-500/5"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 inline"></i></div>
+          <div class="px-6 py-4 border-b border-white/5 text-center"><i data-lucide="x-circle" class="w-5 h-5 text-slate-600 inline"></i></div>
+
+          <div class="px-6 py-4 border-b border-white/5">
+            <div class="font-medium">운영 DB 직접 기록 실무 경험</div>
+            <div class="text-xs text-slate-500 mt-0.5">산업은행 EKP 전자결재 유지보수 (Java/Spring/Oracle) — 기존 구조를 건드리지 않는 반영 설계는 이 경험의 관행</div>
+          </div>
+          <div class="px-6 py-4 border-b border-white/5 text-center bg-purple-500/5"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 inline"></i></div>
+          <div class="px-6 py-4 border-b border-white/5 text-center"><span class="text-xs text-slate-600">경력 나열</span></div>
+
+          <div class="px-6 py-4 border-b border-white/5">
+            <div class="font-medium">동시성 3중 방어 + 경합 테스트 계획</div>
+            <div class="text-xs text-slate-500 mt-0.5">직렬화·FOR UPDATE 고정 순서·유니크 백스톱 — M4 통과 기준에 스레드 경쟁 테스트 명시</div>
+          </div>
+          <div class="px-6 py-4 border-b border-white/5 text-center bg-purple-500/5"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 inline"></i></div>
+          <div class="px-6 py-4 border-b border-white/5 text-center"><span class="text-xs text-slate-600">"처리하겠음" 수준</span></div>
+
+          <div class="px-6 py-4">
+            <div class="font-medium">AI 래피드 프로토타이핑 — 1주 단위 동작물</div>
+            <div class="text-xs text-slate-500 mt-0.5">W2 좌표화 리포트 · W3 엔진 시연 · W4 시뮬레이션 리포트 — 문서 보고가 아닌 실물</div>
+          </div>
+          <div class="px-6 py-4 text-center bg-purple-500/5"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 inline"></i></div>
+          <div class="px-6 py-4 text-center"><i data-lucide="x-circle" class="w-5 h-5 text-slate-600 inline"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 text-center">
+        <div class="text-3xl font-bold text-purple-400"><span data-countup="22">0</span><span class="text-lg">년</span></div>
+        <div class="text-xs text-slate-400 mt-1">Java/Spring/Oracle 백엔드</div>
+      </div>
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 text-center">
+        <div class="text-3xl font-bold text-emerald-400"><span data-countup="32">0</span>+</div>
+        <div class="text-xs text-slate-400 mt-1">수행 프로젝트</div>
+      </div>
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 text-center">
+        <div class="text-3xl font-bold text-cyan-400"><span data-countup="77">0</span></div>
+        <div class="text-xs text-slate-400 mt-1">사전 정의한 시스템 규칙 (BS)</div>
+      </div>
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 text-center">
+        <div class="text-3xl font-bold text-pink-400"><span data-countup="9">0</span>+<span data-countup="9">0</span></div>
+        <div class="text-xs text-slate-400 mt-1">설계 완료 테이블·API</div>
+      </div>
+    </div>
+    <p class="mt-4 text-xs text-slate-500 text-center">22년차 백엔드 전문가 · 대표 경험: 산업은행 EKP 전자결재 유지보수(운영 DB 직접 기록) · AI RAG 검색 시스템 · WebRTC 실시간 앱 (Spring Boot)</p>
+  </section>
+
+  <!-- =========== 11 CTA =========== -->
+  <section id="cta" class="max-w-5xl mx-auto px-6 py-24 md:py-32">
+    <div class="rounded-3xl p-10 md:p-16 backdrop-blur-3xl bg-gradient-to-br from-purple-500/20 via-pink-500/10 to-emerald-500/10 border border-purple-500/30 relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-purple-500/10 blur-3xl -mr-32 -mt-32" aria-hidden="true"></div>
+      <div class="absolute bottom-0 left-0 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl -ml-32 -mb-32" aria-hidden="true"></div>
+
+      <div class="relative text-center">
+        <div class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs bg-white/10 border border-white/20 text-slate-200 mb-6">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-300"></i>
+          기술 검토 미팅 환영 — 설계 문서·코드 리뷰 가능
+        </div>
+        <h2 class="text-4xl md:text-6xl font-bold leading-tight mb-6">
+          800만원부터, 30일 안에<br/>
+          <span class="bg-gradient-to-r from-purple-400 via-pink-400 to-emerald-400 bg-clip-text text-transparent">수기 배정을 끝냅니다</span>
+        </h2>
+        <p class="text-lg text-slate-300 mb-10 max-w-2xl mx-auto">
+          이번 범위는 화면 없는 백엔드 한 벌로 완결하고, 추후 유지보수와 추가 도입 항목(관리 화면 6종)까지
+          이어서 맡을 수 있는 구조 — <b class="text-slate-100">API-first · 유지보수 승계가 쉬운 Java 스택 · 산출물 문서 5종</b> — 로 설계했습니다.
+        </p>
+
+        <!-- ROI Calculator -->
+        <div class="rounded-2xl p-8 bg-slate-950/40 border border-white/10 mb-8 max-w-2xl mx-auto text-left">
+          <div class="flex items-center gap-2 text-sm font-semibold mb-1">
+            <i data-lucide="calculator" class="w-4 h-4 text-emerald-400"></i>
+            자동화 도입 시 담당자 수기 작업이 얼마나 줄어들까요?
+          </div>
+          <p class="text-[10px] text-slate-500 mb-4">가정: 건당 수기 처리 3분(지도 검색·판단·입력·엑셀 대조) · 월 22 영업일 · 시간당 인건비 3.5만원 — 미팅에서 실측값으로 보정해 드립니다</p>
+          <label class="text-xs text-slate-400 mb-2 block" for="roi-daily">일 신청 건수 (이전 공고 기준 60~80건 추정)</label>
+          <div class="flex items-center gap-4">
+            <input type="range" id="roi-daily" min="20" max="150" value="70" aria-describedby="roi-daily-display" />
+            <span id="roi-daily-display" class="font-mono text-sm w-14 text-right">70건</span>
+          </div>
+          <div class="mt-6 grid grid-cols-2 gap-4">
+            <div class="rounded-xl p-4 bg-emerald-500/10 border border-emerald-500/20">
+              <div class="text-xs text-slate-400 mb-1">월 수기 작업 절감</div>
+              <div class="text-2xl font-bold text-emerald-400"><span id="roi-monthly-hours">77</span><span class="text-sm">시간</span></div>
+              <div class="text-[10px] text-slate-500 mt-1">연 <span id="roi-yearly-hours">924</span>시간</div>
+            </div>
+            <div class="rounded-xl p-4 bg-purple-500/10 border border-purple-500/20">
+              <div class="text-xs text-slate-400 mb-1">연간 인건비 환산</div>
+              <div class="text-2xl font-bold text-purple-400">₩<span id="roi-yearly-cost">32,340,000</span></div>
+              <div class="text-[10px] text-slate-500 mt-1">엑셀 이중 관리 제거 효과 별도</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto mb-8 text-left">
+          <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+            <div class="text-xs font-semibold text-slate-200 mb-1 flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i>기존 서비스 무영향</div>
+            <p class="text-[10px] text-slate-500 leading-relaxed">독립 서비스 + ENG_* 격리 + 폴링 — 운영 테이블 ALTER 0건</p>
+          </div>
+          <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+            <div class="text-xs font-semibold text-slate-200 mb-1 flex items-center gap-1.5"><i data-lucide="file-text" class="w-3.5 h-3.5 text-emerald-400"></i>산출물 5종 서면화</div>
+            <p class="text-[10px] text-slate-500 leading-relaxed">소스 일체 · 규칙 정의서 · 매핑 정의서 · 이관 결과 · 배포 가이드 + 검증 보고</p>
+          </div>
+          <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+            <div class="text-xs font-semibold text-slate-200 mb-1 flex items-center gap-1.5"><i data-lucide="handshake" class="w-3.5 h-3.5 text-emerald-400"></i>범위 상향은 사전 합의</div>
+            <p class="text-[10px] text-slate-500 leading-relaxed">도로 거리 채택·조정 3회 초과·규모 대폭 초과 — 트리거 목록을 착수 시 서면 확정</p>
+          </div>
+        </div>
+
+        <p class="text-sm text-slate-400">
+          궁금하신 점은 위시켓 메시지로 문의해 주세요 — 당일 회신 원칙입니다.
+        </p>
+        <p class="mt-6 text-xs text-slate-500">
+          원문 공고: <a href="https://www.wishket.com/project/157617/" class="text-purple-400 hover:text-purple-300 underline underline-offset-2" rel="noopener">위시켓 #157617</a>
+          · 이전 공고: <a href="https://www.wishket.com/project/157444/" class="text-purple-400 hover:text-purple-300 underline underline-offset-2" rel="noopener">#157444</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== CMD+K MODAL =========== -->
+  <div id="cmdk-backdrop" class="fixed inset-0 z-20 bg-slate-950/70 backdrop-blur-sm hidden" aria-hidden="true"></div>
+  <div id="cmdk-modal" class="fixed inset-0 z-20 hidden items-start justify-center pt-24 px-4" role="dialog" aria-modal="true" aria-label="섹션 검색">
+    <div class="w-full max-w-xl rounded-2xl backdrop-blur-3xl bg-slate-900/95 border border-white/20 shadow-2xl shadow-purple-500/20 overflow-hidden">
+      <div class="flex items-center gap-3 p-4 border-b border-white/10">
+        <i data-lucide="search" class="w-5 h-5 text-slate-400"></i>
+        <input type="text" id="cmdk-input" placeholder="섹션 이동 또는 검색…" class="bg-transparent flex-1 outline-none text-sm" aria-label="섹션 검색 입력" />
+        <kbd class="font-mono text-xs px-2 py-1 rounded bg-white/10 text-slate-400">ESC</kbd>
+      </div>
+      <ul class="max-h-80 overflow-y-auto p-2" id="cmdk-list">
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#core">
+          <i data-lucide="workflow" class="w-4 h-4 text-purple-400"></i><span class="flex-1 text-sm">CORE — 배정 파이프라인</span><span class="text-xs text-slate-500">01</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#portfolio">
+          <i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-400"></i><span class="flex-1 text-sm">PORTFOLIO — 배정 현황 모니터</span><span class="text-xs text-slate-500">02</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#engine">
+          <i data-lucide="target" class="w-4 h-4 text-pink-400"></i><span class="flex-1 text-sm">ENGINE — 선정 엔진·시뮬레이션</span><span class="text-xs text-slate-500">03</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#operator">
+          <i data-lucide="layout-dashboard" class="w-4 h-4 text-cyan-400"></i><span class="flex-1 text-sm">OPERATOR — 관리 콘솔 6화면</span><span class="text-xs text-slate-500">04</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#insights">
+          <i data-lucide="lightbulb" class="w-4 h-4 text-amber-400"></i><span class="flex-1 text-sm">INSIGHTS — 모호 Top3·이전 공고</span><span class="text-xs text-slate-500">05</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#questions">
+          <i data-lucide="help-circle" class="w-4 h-4 text-purple-400"></i><span class="flex-1 text-sm">QUESTIONS — 발주자 질의 10</span><span class="text-xs text-slate-500">06</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#risks">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400"></i><span class="flex-1 text-sm">RISKS — 리스크 매트릭스 19</span><span class="text-xs text-slate-500">07</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#architecture">
+          <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i><span class="flex-1 text-sm">ARCHITECTURE — 구조도·ADR·API·코드</span><span class="text-xs text-slate-500">08</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#timeline">
+          <i data-lucide="calendar" class="w-4 h-4 text-emerald-400"></i><span class="flex-1 text-sm">TIMELINE — 30일 계획·M1~M6</span><span class="text-xs text-slate-500">09</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#why-us">
+          <i data-lucide="award" class="w-4 h-4 text-purple-400"></i><span class="flex-1 text-sm">WHY-US — 차별화 비교</span><span class="text-xs text-slate-500">10</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#cta">
+          <i data-lucide="send" class="w-4 h-4 text-pink-400"></i><span class="flex-1 text-sm">CTA — 제안 요약·ROI</span><span class="text-xs text-slate-500">11</span>
+        </li>
+      </ul>
+      <div class="flex items-center justify-between px-4 py-2 border-t border-white/10 text-xs text-slate-500">
+        <span>↑↓ 이동</span><span>↵ 선택</span><span>ESC 닫기</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========== SIDE PANEL =========== -->
+  <aside id="side-panel" class="fixed right-0 top-0 h-screen w-96 max-w-[90vw] translate-x-full transition-transform duration-300 z-30 backdrop-blur-3xl bg-slate-900/95 border-l border-white/10 shadow-2xl shadow-purple-500/20 overflow-y-auto" aria-label="상세 정보 패널">
+    <div class="flex items-center justify-between p-4 border-b border-white/10">
+      <div class="flex items-center gap-2">
+        <i data-lucide="sparkles" class="w-4 h-4 text-purple-400"></i>
+        <span class="font-semibold text-sm" id="side-panel-title">Detail</span>
+      </div>
+      <button id="side-panel-close" class="p-1.5 rounded-lg hover:bg-white/10" aria-label="패널 닫기">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div id="side-panel-body" class="p-6"></div>
+  </aside>
+
+  <!-- =========== FOOTER =========== -->
+  <footer class="border-t border-white/10 mt-20 py-10 text-center text-sm text-slate-500">
+    <div class="max-w-7xl mx-auto px-6">
+      <p>
+        이 페이지는 위시켓 프로젝트 <span class="font-mono text-purple-400">#157617</span> 지원용 레퍼런스 UI입니다.
+        실제 서비스가 아니며 수치·인명(김OO 등)·상호는 데모 목업입니다.
+      </p>
+      <p class="mt-2">
+        일 60~80건 · 전문가 40명은 이전 공고 157444 기반 <b>추정치</b>이며 착수 시 재확인합니다 (Q6).
+      </p>
+      <p class="mt-2">
+        Generated by <span class="font-mono">wishket-refui</span> · Last updated: 2026-08-16
+        · <a href="nonit.html" class="text-purple-400 hover:text-purple-300 underline underline-offset-2">비개발자용 버전</a>
+        · <a href="https://github.com/meleteyo/refui-157617" class="text-purple-400 hover:text-purple-300 underline underline-offset-2" rel="noopener">Source</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- =========== DATA (client.js보다 앞 — file:// 동작 위해 fetch 대신 인라인) =========== -->
+  <script>
+    window.REFUI_DATA = {
+      meta: {
+        projectId: "157617",
+        title: "기업-전문가 거리 기반 자동 배정 시스템 개발(기존 시스템 연동)",
+        budget: "8,000,000원 (공고 명시: 800만원부터 협의)",
+        period: "30일 (약 1개월, 착수 시점 협의)",
+        applicants: "58명 (관심 27, 댓글 17)",
+        deadline: "2026-08-21",
+        postedAt: "2026-08-12",
+        stack: "기존 Java 웹 + Oracle DB, 엔진 스택은 제안사 제안",
+        note: "이전 공고 157444의 범위 확대 재공고",
+        analyzedAt: "2026-08-16"
+      },
+      /* 리스크 산점도 (client.js chart-risks 소비) — impact/prob에 겹침 방지 미세 오프셋 적용 (원값은 pi/pp) */
+      risks: [
+        { id: "R1",  name: "기존 개발사 협조 지연 (스키마·기록 스펙·배포 절차)", category: "외부 의존", prob: 3,    impact: 3,    pi: 3, pp: 3, score: 9, strategy: "완화 — DB 폴링으로 의존 최소화 + 착수 조건화" },
+        { id: "R2",  name: "규칙 확정 지연 (미정 정책 7건+, M1 지연)", category: "일정", prob: 2.82, impact: 2.0,  pi: 2, pp: 3, score: 6, strategy: "완화 — 질의서 선행 + P1 선행 완충" },
+        { id: "R3",  name: "무한 조정 ('조정은 계약 범위' 무제한 해석)", category: "범위", prob: 2.2,  impact: 2.8,  pi: 3, pp: 2, score: 6, strategy: "완화 — 2주·3회 서면 합의 + 시뮬레이션 저비용화" },
+        { id: "R4",  name: "기존 조회 화면 비호환 (테이블 기록만으로 조회 불가)", category: "기술", prob: 2.2,  impact: 3.05, pi: 3, pp: 2, score: 6, strategy: "회피 — 계약 전 Q14 확인, 화면 수정 주체 분리" },
+        { id: "R5",  name: "규모 전제 오류 (일 60~80건·40명 가정)", category: "범위", prob: 1,    impact: 3,    pi: 3, pp: 1, score: 3, strategy: "완화 — Q6 재확인 + 조건부 견적" },
+        { id: "R6",  name: "법인사업자 요건 미충족·협의 결렬", category: "계약", prob: 2.0,  impact: 3.3,  pi: 3, pp: 2, score: 6, strategy: "회피 — 지원~미팅 단계 Q26 사전 확인" },
+        { id: "R7",  name: "예산 하한 고착 (800 '부터 협의'가 상한처럼 작동)", category: "계약·수익성", prob: 3.1,  impact: 1.82, pi: 2, pp: 3, score: 6, strategy: "완화 — 범위 상향 트리거 명시한 조건부 견적" },
+        { id: "R8",  name: "주소 데이터 품질 불량 (정제 실패율 예측 불가)", category: "기술", prob: 3.1,  impact: 2.18, pi: 2, pp: 3, score: 6, strategy: "완화 — W1 전수 좌표화 + 실패율 리포트 조기 공유" },
+        { id: "R9",  name: "개인정보 — 전문가 주소의 외부 지오코딩 전송 제약", category: "컴플라이언스", prob: 2.2,  impact: 1.78, pi: 2, pp: 2, score: 4, strategy: "회피/완화 — Q17 사전 확인, 대안 경로 준비" },
+        { id: "R10", name: "배정 실행 시점 결정 표류 (즉시 확정 vs 묶음의 긴장)", category: "범위·아키텍처", prob: 1.95, impact: 2.8,  pi: 3, pp: 2, score: 6, strategy: "완화 — 배치 기본안 조기 합의 (Q1)" },
+        { id: "R11", name: "1차 규칙(일일 한도·인접 도 우회) 부활", category: "범위", prob: 2.2,  impact: 2.0,  pi: 2, pp: 2, score: 4, strategy: "완화 — 옵션 견적 +2~4일 분리 (Q8)" },
+        { id: "R12", name: "'추가 도입 검토 항목'의 개발 중 본계약 편입 압력", category: "범위", prob: 2.2,  impact: 2.22, pi: 2, pp: 2, score: 4, strategy: "전가 — 별도 견적·후속 계약 명시 분리" },
+        { id: "R13", name: "엑셀 실적 데이터 품질 불량 (명 매칭·합계 불일치)", category: "기술", prob: 1.95, impact: 1.78, pi: 2, pp: 2, score: 4, strategy: "완화 — 드라이런·합계 대사·전량 미반영 원칙" },
+        { id: "R14", name: "개발 환경 접속 지연 (VPN·계정·테이블 생성 권한)", category: "일정", prob: 1.82, impact: 2.0,  pi: 2, pp: 2, score: 4, strategy: "완화 — 착수 전 체크리스트 (Q15)" },
+        { id: "R15", name: "오배정의 운영 노출 (무검수 자동 확정 → 전문가가 직접 봄)", category: "품질·신뢰", prob: 1.78, impact: 3.05, pi: 3, pp: 2, score: 6, strategy: "완화 — 검증 승인 전 운영 전환 금지 + 회수·근거 이력" },
+        { id: "R16", name: "Oracle 버전·권한 제약 (FOR UPDATE·함수기반 유니크 불가 등)", category: "기술", prob: 1.0,  impact: 1.9,  pi: 2, pp: 1, score: 2, strategy: "수용/완화 — Q16 확인, 대체 잠금 설계 보유" },
+        { id: "R17", name: "지오코딩 쿼터·비용 초과 (도로 거리 채택·대량 재변환)", category: "기술·비용", prob: 1.05, impact: 2.1,  pi: 2, pp: 1, score: 2, strategy: "완화 — 직선 거리 기본안, 도로 거리는 옵션 견적" },
+        { id: "R18", name: "검수 지연·대금 리스크 (미인증 신규 발주처)", category: "계약", prob: 2.0,  impact: 2.0,  pi: 2, pp: 2, score: 4, strategy: "완화 — M6 완료 기준 서면화 + 위시켓 에스크로 준수" },
+        { id: "R19", name: "수동·자동 배정 병행 경합 (담당자 수동 배정 vs 엔진 배치)", category: "기술", prob: 1.95, impact: 2.22, pi: 2, pp: 2, score: 4, strategy: "완화 — 기록 테이블 폴링 대조 감지 설계" }
+      ],
+      milestones: [
+        { id: "M1", name: "규칙 파라미터 초안 확정", day: "D5",  criteria: "워크숍 결과 — 묶음·편차·실행 시점·거리 기준 서면 합의" },
+        { id: "M2", name: "데이터 매핑 정의서 승인", day: "D7",  criteria: "배정 기록 스펙 기존 개발사 확인" },
+        { id: "M3", name: "전체 주소 좌표화 + 이관 드라이런", day: "D12", criteria: "실패율 리포트, 대사 검증 통과" },
+        { id: "M4", name: "배정 엔진 E2E + 동시성 통과", day: "D18", criteria: "개발 환경 배치 1회전 성공" },
+        { id: "M5", name: "검증 완료·규칙 확정", day: "D25", criteria: "조정 3회 리포트, 발주처 승인" },
+        { id: "M6", name: "운영 전환·검수", day: "D30", criteria: "운영 첫 배치 + 기존 화면 조회 확인 + 산출물 인계" }
+      ],
+      screens: [
+        { model: 81, name: "전문가 관리 화면", scope: "추가 도입 검토 1 — 전문가 명단·소속 지역·배정 가능 여부 관리", days: "4~6일", estimate: "120~180만원", rules: "BS0081~BS0083", rel: "전문가 CRUD API 소폭 추가 + 화면" },
+        { model: 82, name: "배정 현황 모니터", scope: "추가 도입 검토 2 — 전문가별 배정 현황·균등 배분 상태 (부하 히트맵·도별 편차 게이지)", days: "3~5일", estimate: "90~150만원", rules: "BS0084~BS0086", rel: "ENG_COUNTER 조회 API 존재 — 화면 위주" },
+        { model: 83, name: "실패 건 처리·수동 재배정", scope: "추가 도입 검토 3 — 자동 배정 실패 건 처리·수동 재배정 (인박스 제로 큐)", days: "4~6일", estimate: "120~180만원", rules: "BS0087~BS0089", rel: "대기 목록·회수 API 존재 — 재배정 액션 + 화면" },
+        { model: 84, name: "배정 이력·통계", scope: "추가 도입 검토 4 — 배정 사유 이력 조회·기간별/지역별 통계 ('왜 이 전문가?' 근거 카드)", days: "4~6일", estimate: "120~180만원", rules: "BS0090~BS0092", rel: "ENG_ASSIGN_LOG 이력 API 존재 — 집계 쿼리 + 화면" },
+        { model: 85, name: "규칙 파라미터·시뮬레이션", scope: "추가 도입 검토 5 — 묶음 거리 기준·균등 허용 편차 조정 + A/B 드라이런 비교", days: "2~3일", estimate: "60~100만원", rules: "BS0093~BS0095", rel: "ENG_PARAM이 이미 설정 테이블 — 편집 UI만" },
+        { model: 86, name: "전문가 알림", scope: "추가 도입 검토 6 — 배정 시 전문가 자동 알림 발송 (일 1통 다이제스트 기본)", days: "3~4일", estimate: "90~130만원", rules: "BS0096~BS0098", rel: "확정 이벤트에 발송 훅 추가 (채널 협의)" }
+      ],
+      /* 부하 히트맵 (당월 배정 건수 · 데모 목업 · 실명 아님) — s: ok/near/over/off */
+      experts: [
+        { n: "김OO", p: "경기", c: 12, s: "near" }, { n: "이OO", p: "경기", c: 11, s: "ok" },
+        { n: "최OO", p: "경기", c: 13, s: "over" }, { n: "정OO", p: "경기", c: 11, s: "ok" },
+        { n: "송OO", p: "경기", c: 10, s: "ok" },   { n: "한OO", p: "경기", c: 12, s: "near" },
+        { n: "오OO", p: "경기", c: 11, s: "ok" },   { n: "임OO", p: "경기", c: 10, s: "ok" },
+        { n: "서OO", p: "경기", c: 11, s: "ok" },
+        { n: "박OO", p: "서울", c: 14, s: "off" },  { n: "조OO", p: "서울", c: 12, s: "ok" },
+        { n: "윤OO", p: "서울", c: 13, s: "near" }, { n: "장OO", p: "서울", c: 12, s: "ok" },
+        { n: "강OO", p: "서울", c: 11, s: "ok" },   { n: "심OO", p: "서울", c: 12, s: "ok" },
+        { n: "노OO", p: "서울", c: 13, s: "near" },
+        { n: "권OO", p: "인천", c: 9,  s: "ok" },   { n: "문OO", p: "인천", c: 10, s: "near" },
+        { n: "양OO", p: "인천", c: 9,  s: "ok" },
+        { n: "배OO", p: "충남", c: 8,  s: "ok" },   { n: "백OO", p: "충남", c: 9,  s: "near" },
+        { n: "허OO", p: "충남", c: 8,  s: "ok" },   { n: "남OO", p: "충남", c: 8,  s: "ok" },
+        { n: "유OO", p: "충북", c: 7,  s: "ok" },   { n: "홍OO", p: "충북", c: 8,  s: "near" },
+        { n: "전OO", p: "충북", c: 7,  s: "ok" },
+        { n: "고OO", p: "전북", c: 9,  s: "ok" },   { n: "안OO", p: "전북", c: 9,  s: "ok" },
+        { n: "손OO", p: "전북", c: 9,  s: "ok" },
+        { n: "황OO", p: "전남", c: 8,  s: "ok" },   { n: "곽OO", p: "전남", c: 9,  s: "near" },
+        { n: "성OO", p: "전남", c: 8,  s: "ok" },
+        { n: "차OO", p: "경북", c: 10, s: "ok" },   { n: "주OO", p: "경북", c: 11, s: "near" },
+        { n: "우OO", p: "경북", c: 10, s: "ok" },   { n: "구OO", p: "경북", c: 10, s: "ok" },
+        { n: "신OO", p: "경남", c: 9,  s: "ok" },   { n: "라OO", p: "경남", c: 9,  s: "ok" },
+        { n: "진OO", p: "경남", c: 10, s: "near" }, { n: "하OO", p: "경남", c: 9,  s: "ok" }
+      ],
+      batchTrend: {
+        labels: ["08-10", "08-11", "08-12", "08-13", "08-14", "08-15", "08-16"],
+        confirmed: [61, 64, 58, 72, 67, 66, 68],
+        waiting:   [5, 3, 7, 4, 6, 3, 4]
+      },
+      simRadar: {
+        labels: ["수기 일치율", "편차 준수", "거리 효율", "묶음 성사율", "배정 완결률"],
+        setA: [87, 100, 92, 72, 90],
+        setB: [84, 100, 82, 91, 95]
+      }
+    };
+  </script>
+
+  <script src="./client.js"></script>
+  <script>lucide.createIcons();</script>
+
+  <!-- =========== 페이지 전용 스크립트 (client.js 보완 — 도메인 차트·계산기·패널) =========== -->
+  <script>
+  (function () {
+    'use strict';
+    var D = window.REFUI_DATA || {};
+
+    /* ---------- 1. 부하 히트맵 ---------- */
+    function buildHeatmap() {
+      var host = document.getElementById('load-heatmap');
+      if (!host || !D.experts) return;
+      D.experts.forEach(function (e) {
+        var cell = document.createElement('div');
+        cell.className = 'load-cell load-' + e.s;
+        cell.title = e.n + ' · ' + e.p + ' · 당월 ' + e.c + '건' + (e.s === 'off' ? ' · 배정 가능 OFF' : (e.s === 'over' ? ' · 편차 초과 — 배정 차단' : ''));
+        cell.innerHTML = '<div class="font-semibold">' + e.n + '</div><div class="opacity-70">' + e.p + ' · ' + e.c + '</div>';
+        host.appendChild(cell);
+      });
+    }
+
+    /* ---------- 2. 도메인 차트 (batch trend + sim radar) ---------- */
+    function initDomainCharts() {
+      if (typeof Chart === 'undefined') return;
+
+      var trendEl = document.getElementById('chart-batch-trend');
+      if (trendEl && D.batchTrend) {
+        new Chart(trendEl, {
+          type: 'bar',
+          data: {
+            labels: D.batchTrend.labels,
+            datasets: [
+              {
+                type: 'bar', label: '확정', data: D.batchTrend.confirmed,
+                backgroundColor: 'rgba(16,185,129,0.55)', borderColor: '#10b981',
+                borderWidth: 1, borderRadius: 6, maxBarThickness: 34
+              },
+              {
+                type: 'line', label: '대기', data: D.batchTrend.waiting,
+                borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.25)',
+                borderWidth: 2, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#f59e0b'
+              }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', padding: 14 } },
+              tooltip: {
+                backgroundColor: 'rgba(2,6,23,0.95)', borderColor: 'rgba(168,85,247,0.3)', borderWidth: 1, padding: 12,
+                callbacks: { label: function (c) { return c.dataset.label + ': ' + c.parsed.y + '건'; } }
+              }
+            },
+            scales: {
+              x: { grid: { display: false } },
+              y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: function (v) { return v + '건'; } }, beginAtZero: true }
+            }
+          }
+        });
+      }
+
+      var radarEl = document.getElementById('chart-sim-radar');
+      if (radarEl && D.simRadar) {
+        new Chart(radarEl, {
+          type: 'radar',
+          data: {
+            labels: D.simRadar.labels,
+            datasets: [
+              {
+                label: '세트 A — 반경 3km', data: D.simRadar.setA,
+                backgroundColor: 'rgba(168,85,247,0.15)', borderColor: '#a855f7', borderWidth: 2,
+                pointBackgroundColor: '#a855f7', pointBorderColor: '#fff', pointRadius: 4
+              },
+              {
+                label: '세트 B — 반경 5km', data: D.simRadar.setB,
+                backgroundColor: 'rgba(16,185,129,0.15)', borderColor: '#10b981', borderWidth: 2,
+                pointBackgroundColor: '#10b981', pointBorderColor: '#fff', pointRadius: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              r: {
+                angleLines: { color: 'rgba(255,255,255,0.1)' },
+                grid: { color: 'rgba(255,255,255,0.08)' },
+                pointLabels: { font: { size: 11 }, color: '#cbd5e1' },
+                ticks: { backdropColor: 'transparent', color: '#64748b', stepSize: 25 },
+                suggestedMin: 0, suggestedMax: 100
+              }
+            }
+          }
+        });
+      }
+    }
+
+    /* ---------- 3. ROI 계산기 (도메인식 — 건당 3분 · 월 22 영업일 · 시간당 3.5만원) ---------- */
+    function initRoi() {
+      var slider = document.getElementById('roi-daily');
+      if (!slider) return;
+      var disp = document.getElementById('roi-daily-display');
+      var mh = document.getElementById('roi-monthly-hours');
+      var yh = document.getElementById('roi-yearly-hours');
+      var yc = document.getElementById('roi-yearly-cost');
+      function update() {
+        var t = +slider.value;
+        var monthlyHours = Math.round(t * 3 * 22 / 60);
+        var yearlyHours = monthlyHours * 12;
+        if (disp) disp.textContent = t + '건';
+        if (mh) mh.textContent = monthlyHours.toLocaleString('ko-KR');
+        if (yh) yh.textContent = yearlyHours.toLocaleString('ko-KR');
+        if (yc) yc.textContent = (yearlyHours * 35000).toLocaleString('ko-KR');
+      }
+      slider.addEventListener('input', update);
+      update();
+    }
+
+    /* ---------- 4. OPERATOR 견적 계산기 ---------- */
+    function initEstimator() {
+      var checks = document.querySelectorAll('.est-check');
+      if (!checks.length) return;
+      var amountEl = document.getElementById('est-amount');
+      var daysEl = document.getElementById('est-days');
+      var countEl = document.getElementById('est-count');
+      var bundleNote = document.getElementById('est-bundle-note');
+      function update() {
+        var min = 0, max = 0, dmin = 0, dmax = 0, cnt = 0;
+        checks.forEach(function (c) {
+          if (!c.checked) return;
+          cnt++;
+          min += +c.dataset.min; max += +c.dataset.max;
+          dmin += +c.dataset.dmin; dmax += +c.dataset.dmax;
+        });
+        if (countEl) countEl.textContent = cnt;
+        if (amountEl) amountEl.textContent = cnt ? (min + '~' + max) : '0';
+        if (daysEl) daysEl.textContent = cnt ? (dmin + '~' + dmax) : '0';
+        if (bundleNote) bundleNote.classList.toggle('hidden', cnt !== checks.length);
+      }
+      checks.forEach(function (c) { c.addEventListener('change', update); });
+      update();
+    }
+
+    /* ---------- 5. INSIGHTS A/B 해석 토글 ---------- */
+    function initAbToggles() {
+      document.querySelectorAll('.ab-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var group = btn.dataset.abGroup, val = btn.dataset.ab;
+          document.querySelectorAll('.ab-btn[data-ab-group="' + group + '"]').forEach(function (b) {
+            b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+          });
+          document.querySelectorAll('.ab-panel[data-ab-group="' + group + '"]').forEach(function (p) {
+            p.classList.toggle('hidden', p.dataset.ab !== val);
+          });
+        });
+      });
+    }
+
+    /* ---------- 6. 사이드 패널 콘텐츠 (파이프라인 단계 · OPERATOR 화면) ---------- */
+    var STEP_DETAILS = {
+      step1: { title: '모델 11 · 배정 대상 선별', body:
+        '<div class="space-y-3 text-sm text-slate-300">' +
+        '<p><b class="text-purple-300">방식</b> — 엔진이 EXT_APPLY(가칭)를 폴링해 미배정 건 + ENG_CASE_STATE의 재배정 대상을 선별합니다. 기존 시스템 코드 수정 0건.</p>' +
+        '<p><b class="text-purple-300">잠금</b> — ENG_JOB_RUN에 status=RUNNING 함수기반 유니크 — 배치 중복 기동은 ORA-00001로 즉시 차단 (BS0021/BS0042).</p>' +
+        '<p><b class="text-purple-300">수동 배정 감지</b> — 담당자가 기존 화면으로 수동 배정한 건은 EXT_ASSIGN 폴링 대조로 감지해 카운터·상태를 동기화 (BS0051, R19 대응).</p>' +
+        '<div class="rounded-lg p-3 bg-white/5 border border-white/10 text-xs font-mono">읽기: EXT_APPLY (SELECT만)<br/>쓰기: ENG_CASE_STATE → ASSIGN_TARGET</div></div>' },
+      step2: { title: '모델 12 · 주소 정제 + 좌표 변환', body:
+        '<div class="space-y-3 text-sm text-slate-300">' +
+        '<p><b class="text-cyan-300">2단 파이프라인</b> — 행안부 주소정제 API(정제) → 카카오 로컬 API(좌표). 도로명·지번 혼재·구주소·오류·누락 대응.</p>' +
+        '<p><b class="text-cyan-300">캐시</b> — ENG_GEOCODE_CACHE(정제 주소 유니크)에 성공·실패 모두 기록, 캐시 미스만 외부 호출 (BS0002) — 무료 쿼터 내 운영.</p>' +
+        '<p><b class="text-cyan-300">실패 경로</b> — 실패 건은 WAITING(GEOCODE_FAIL) + ENG_ADDR_FIX 등록 → CSV 다운로드·보정·업로드 → 재변환·복귀 (BS0003/BS0061).</p>' +
+        '<div class="rounded-lg p-3 bg-white/5 border border-white/10 text-xs font-mono">IGeocoder 인터페이스 — 카카오↔행안부↔모킹 교체 가능 (개인정보 제약 Q17 대비)</div></div>' },
+      step3: { title: '모델 13 · 근접 기업 묶음 생성', body:
+        '<div class="space-y-3 text-sm text-slate-300">' +
+        '<p><b class="text-pink-300">그리디 근접 클러스터링</b> — 같은 도 경계 내에서 접수순으로 기준 건을 잡고, 반경 파라미터 내 최근접 기업을 최대 3건까지 추가. 대표 좌표는 산술 평균 (BS0031~33).</p>' +
+        '<p><b class="text-pink-300">K-means 기각</b> — 용량 제약(2~3건)·접수 순서 요건에 부적합. 일 60~80건(추정)이면 전수 하버사인 계산으로 밀리초 수준.</p>' +
+        '<p><b class="text-pink-300">단독 배정</b> — 반경 내 1건뿐이면 단독 배정 허용을 권장 (Q7-A, 대기 적체 방지 — soloAssignAllowed 파라미터).</p>' +
+        '<div class="rounded-lg p-3 bg-white/5 border border-white/10 text-xs font-mono">ENG_BUNDLE + ENG_BUNDLE_ITEM (case_id 유니크 — 중복 배정 1차 차단)</div></div>' },
+      step4: { title: '모델 14 · 전문가 선정', body:
+        '<div class="space-y-3 text-sm text-slate-300">' +
+        '<p><b class="text-emerald-300">1단계 균등=제약</b> — 배정 후 (전문가 월 건수 − 도 내 최소) ≤ 허용편차인 후보만 남김 (BS0034). 후보 없음 → WAITING(DEVIATION_BLOCK).</p>' +
+        '<p><b class="text-emerald-300">2단계 거리=목적</b> — 진행중 건수 ASC → 하버사인 거리 ASC → 월 배정 수 ASC → expert_id ASC (BS0035/BS0038 — 같은 입력 = 같은 결과, 검증 재현성).</p>' +
+        '<p><b class="text-emerald-300">카운터</b> — ENG_COUNTER(전문가×연월)를 SELECT FOR UPDATE 후 증감 — 균등 배분의 단일 진실 (BS0044~45).</p></div>' },
+      step5: { title: '모델 15 · 배정 확정 (3중 방어)', body:
+        '<div class="space-y-3 text-sm text-slate-300">' +
+        '<p><b class="text-amber-300">① 직렬화</b> — 배치 단일 워커 + ENG_JOB_RUN 실행중 유니크 — 경합 원천 축소.</p>' +
+        '<p><b class="text-amber-300">② 잠금</b> — 트랜잭션 내 FOR UPDATE를 고정 순서(CASE_STATE → ASSIGN → COUNTER)로 획득해 교착 방지, 커밋 직전 편차 재검증 — 위반 시 롤백·대기 (BS0007).</p>' +
+        '<p><b class="text-amber-300">③ 제약</b> — 신청 건당 활성 배정 1건 유니크(BS0041) + BUNDLE_ITEM.case_id 유니크 — 코드 결함까지 DB가 최종 차단.</p>' +
+        '<p><b class="text-amber-300">멱등성</b> — 재실행 시 기 확정 건 포함 묶음은 제외·집계만 (BS0043) — 장애 후 재기동 안전.</p>' +
+        '<div class="rounded-lg p-3 bg-white/5 border border-white/10 text-xs font-mono">EXT_ASSIGN INSERT/UPDATE — 유일한 기존 테이블 쓰기 지점<br/>커밋 즉시 기존 조회 화면에서 조회 가능</div></div>' }
+    };
+
+    function bindPanels() {
+      document.querySelectorAll('.js-panel-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var d = STEP_DETAILS[btn.dataset.key];
+          if (d && window.openSidePanel) window.openSidePanel(d.title, d.body);
+        });
+      });
+      document.querySelectorAll('.js-screen-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var s = (D.screens || [])[+btn.dataset.idx];
+          if (!s || !window.openSidePanel) return;
+          window.openSidePanel('모델 ' + s.model + ' · ' + s.name,
+            '<div class="space-y-3 text-sm text-slate-300">' +
+            '<p>' + s.scope + '</p>' +
+            '<div class="rounded-lg p-3 bg-white/5 border border-white/10"><div class="text-xs text-slate-400 mb-1">이번 범위와의 관계 (API-first)</div><p class="text-xs">' + s.rel + '</p></div>' +
+            '<div class="grid grid-cols-2 gap-2 text-center">' +
+            '<div class="rounded-lg p-3 bg-white/5 border border-white/10"><div class="text-xs text-slate-400">개발 기간</div><div class="font-bold">' + s.days + '</div></div>' +
+            '<div class="rounded-lg p-3 bg-white/5 border border-white/10"><div class="text-xs text-slate-400">개략 견적</div><div class="font-bold text-cyan-300">' + s.estimate + '</div></div>' +
+            '</div>' +
+            '<p class="text-xs text-slate-500">UI 규칙 대역 ' + s.rules + ' · 이번 계약 범위 밖 — 도입 결정 시 별도 견적 (제안서 §2.5)</p></div>');
+        });
+      });
+    }
+
+    /* ---------- 7. 리스크 전체 표 ---------- */
+    function buildRiskTable() {
+      var tbody = document.querySelector('#risk-full-table tbody');
+      if (!tbody || !D.risks) return;
+      var rows = D.risks.slice().sort(function (a, b) { return b.score - a.score; });
+      rows.forEach(function (r) {
+        var tr = document.createElement('tr');
+        tr.className = 'border-b border-white/5';
+        var scoreColor = r.score >= 7 ? 'text-red-300' : (r.score >= 4 ? 'text-amber-300' : 'text-slate-500');
+        tr.innerHTML =
+          '<td class="py-2 px-4 font-mono text-slate-400">' + r.id + '</td>' +
+          '<td class="py-2 px-4">' + r.name + '</td>' +
+          '<td class="py-2 px-4 text-slate-500">' + r.category + '</td>' +
+          '<td class="py-2 px-4 text-center font-mono">' + r.pp + '</td>' +
+          '<td class="py-2 px-4 text-center font-mono">' + r.pi + '</td>' +
+          '<td class="py-2 px-4 text-center font-mono font-bold ' + scoreColor + '">' + r.score + '</td>' +
+          '<td class="py-2 px-4 text-slate-400">' + r.strategy + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function init() {
+      buildHeatmap();
+      initDomainCharts();
+      initRoi();
+      initEstimator();
+      initAbToggles();
+      bindPanels();
+      buildRiskTable();
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+  </script>
+</body>
+</html>

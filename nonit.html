@@ -1,0 +1,1603 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>기업-전문가 거리 기반 자동 배정 시스템 — 레퍼런스 UI (일반 고객용)</title>
+  <meta name="description" content="지도 검색과 엑셀 대조 없이 배정이 스스로 끝나는 시스템 — 기술 용어 없이 동작과 효과만 담은 일반 고객용 제안 레퍼런스 UI" />
+  <meta property="og:title" content="기업-전문가 거리 기반 자동 배정 시스템 — 일반 고객용" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://meleteyo.github.io/refui-157617/refui/nonit.html" />
+
+  <!-- Tailwind CSS (CDN, JIT) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Pretendard Variable"', 'Pretendard', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'SF Mono', 'Menlo', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Pretendard (한글 최적화) + JetBrains Mono (숫자) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Lucide icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="./styles.css" />
+
+  <style>
+    :root {
+      --project-id: 157617;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Pretendard Variable', Pretendard, system-ui, sans-serif;
+      background: #020617;
+      color: #f1f5f9;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Aurora gradient mesh */
+    .aurora-bg {
+      position: fixed; inset: 0; z-index: -10;
+      background: #020617;
+    }
+    .aurora-bg::before {
+      content: ''; position: absolute; inset: 0; opacity: 0.4;
+      background:
+        radial-gradient(at 15% 25%, rgba(139,92,246,0.35), transparent 50%),
+        radial-gradient(at 85% 75%, rgba(16,185,129,0.25), transparent 50%),
+        radial-gradient(at 50% 50%, rgba(236,72,153,0.15), transparent 45%),
+        radial-gradient(at 10% 90%, rgba(34,211,238,0.12), transparent 40%);
+    }
+    /* Scroll-driven animations (modern browsers) */
+    @supports (animation-timeline: view()) {
+      .scroll-reveal {
+        animation: slideUp 0.8s ease-out;
+        animation-timeline: view();
+        animation-range: entry 0% cover 30%;
+      }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* 흐름도 화살표 (비IT 동작 흐름) */
+    .flow-arrow { color: rgba(148,163,184,0.6); }
+    /* 부하 히트맵 셀 */
+    .heat-cell {
+      border-radius: 8px; padding: 0.5rem 0.25rem; text-align: center;
+      font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.06);
+    }
+    .heat-ok    { background: rgba(16,185,129,0.14); color: #6ee7b7; }
+    .heat-near  { background: rgba(245,158,11,0.16); color: #fcd34d; }
+    .heat-over  { background: rgba(239,68,68,0.18);  color: #fca5a5; }
+    /* 도별 편차 게이지 */
+    .gauge-track { height: 10px; border-radius: 5px; background: rgba(255,255,255,0.08); overflow: hidden; }
+    .gauge-fill  { height: 100%; border-radius: 5px; }
+  </style>
+</head>
+
+<body data-domain="assignment" data-client-type="nonit">
+  <div class="aurora-bg" aria-hidden="true"></div>
+
+  <!-- =========== HEADER =========== -->
+  <header class="sticky top-0 z-20 backdrop-blur-xl bg-slate-950/70 border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <!-- Brand -->
+      <a href="#top" class="flex items-center gap-3 group">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500 via-pink-500 to-emerald-500 shadow-lg shadow-purple-500/30"></div>
+        <div class="hidden sm:block">
+          <div class="font-bold text-base leading-tight">거리 기반 자동 배정 시스템</div>
+          <div class="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+            <span>WISHKET</span>
+            <span class="font-mono text-purple-400">#157617</span>
+            <span class="rounded-full px-2 py-0.5 bg-emerald-500/15 text-emerald-300 text-[10px]">일반 고객용</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Section nav (desktop) -->
+      <nav class="hidden lg:flex items-center gap-5 text-sm text-slate-400">
+        <a href="#core" class="hover:text-purple-400 transition">동작 방식</a>
+        <a href="#portfolio" class="hover:text-purple-400 transition">현황판</a>
+        <a href="#engine" class="hover:text-purple-400 transition">배정 규칙</a>
+        <a href="#operator" class="hover:text-purple-400 transition">관리 화면</a>
+        <a href="#insights" class="hover:text-purple-400 transition">확인할 것</a>
+        <a href="#questions" class="hover:text-purple-400 transition">질문</a>
+        <a href="#timeline" class="hover:text-purple-400 transition">일정</a>
+      </nav>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-2">
+        <button id="cmdk-trigger" class="hidden sm:flex items-center gap-2 text-sm text-slate-400 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition">
+          <i data-lucide="search" class="w-3.5 h-3.5"></i>
+          <span>검색</span>
+          <kbd class="font-mono text-xs px-1.5 py-0.5 rounded bg-white/10 text-slate-300">⌘K</kbd>
+        </button>
+        <a href="proto/index.html" class="rounded-xl px-4 py-2 text-sm font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/25 transition">
+          라이브 데모 →
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========== HERO =========== -->
+  <section id="top" class="relative max-w-7xl mx-auto px-6 pt-16 md:pt-24 pb-10">
+    <div class="max-w-4xl">
+      <div class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs bg-purple-500/10 border border-purple-500/20 text-purple-300 mb-6">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+        </span>
+        레퍼런스 UI · 제안서 참조용 · 화면 속 숫자는 모의 데이터입니다
+      </div>
+
+      <h1 class="text-5xl md:text-7xl font-bold leading-[1.05] tracking-tight">
+        지도 검색도, 엑셀 대조도 없이<br />
+        <span class="bg-gradient-to-r from-purple-400 via-pink-400 to-emerald-400 bg-clip-text text-transparent">배정이 스스로 끝납니다</span>
+      </h1>
+      <p class="mt-6 text-lg md:text-xl text-slate-300 max-w-2xl leading-relaxed">
+        신청이 접수되면 가까운 기업 2~3곳을 하나로 묶고, 같은 도 내에서 업무량이 고르게 배분되도록
+        가장 적합한 전문가를 자동으로 배정합니다. 배정 결과는 전문가가 현재 사용 중인 홈페이지에서 바로 확인할 수 있습니다.
+        <span class="text-emerald-300">기존 시스템은 한 줄도 고치지 않습니다.</span>
+      </p>
+
+      <!-- 비즈니스 성과 뱃지 (비IT) -->
+      <div class="mt-6 flex flex-wrap gap-2 text-xs">
+        <span class="rounded-full px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">✅ 지도 수기 검색 0회</span>
+        <span class="rounded-full px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">✅ 엑셀 이중 관리 종료</span>
+        <span class="rounded-full px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">✅ 모든 배정 근거 기록</span>
+        <span class="rounded-full px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">✅ 검증 후 가동 (2주·조정 3회)</span>
+      </div>
+
+      <div class="mt-8 flex flex-wrap items-center gap-3">
+        <a href="proto/index.html" class="group inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/25 transition">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          라이브 데모 체험 →
+          <span class="text-xs opacity-60 group-hover:opacity-100 transition">클릭해서 직접 써보기</span>
+        </a>
+        <a href="demo/자동시연.html" class="group inline-flex items-center gap-2 rounded-xl px-5 py-3 font-semibold bg-purple-500/15 border border-purple-500/30 text-purple-200 hover:bg-purple-500/25 transition">
+          <i data-lucide="video" class="w-4 h-4"></i>
+          1분 30초 자동 시연 →
+          <span class="text-xs opacity-60 group-hover:opacity-100 transition">설명 자막과 함께</span>
+        </a>
+        <a href="#insights" class="rounded-xl px-5 py-3 text-sm text-slate-300 hover:text-purple-400 transition">
+          시작 전에 함께 정할 것들 →
+        </a>
+      </div>
+
+      <!-- 프로젝트 메타 -->
+      <div class="mt-10 grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl text-sm">
+        <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+          <div class="text-xs text-slate-400">예산</div>
+          <div class="font-bold mt-1">800만 원<span class="text-xs font-normal text-slate-400">부터 협의</span></div>
+        </div>
+        <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+          <div class="text-xs text-slate-400">기간</div>
+          <div class="font-bold mt-1">30일</div>
+        </div>
+        <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+          <div class="text-xs text-slate-400">하루 신청</div>
+          <div class="font-bold mt-1">60~80건<span class="text-xs font-normal text-slate-400"> 추정</span></div>
+        </div>
+        <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+          <div class="text-xs text-slate-400">전문가</div>
+          <div class="font-bold mt-1">약 40명<span class="text-xs font-normal text-slate-400"> 추정</span></div>
+        </div>
+      </div>
+      <p class="mt-2 text-xs text-slate-500">하루 신청·전문가 수는 이전 공고(157444) 기준 추정치이며, 시작 전에 함께 확인합니다.</p>
+    </div>
+  </section>
+
+  <!-- =========== CORE — 배정 자동화, 이렇게 흘러갑니다 =========== -->
+  <section id="core" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="mb-10 scroll-reveal">
+      <div class="text-xs font-mono text-purple-400 mb-3">01 · 자동 배정</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">담당자 손을 거치지 않는 5단계</h2>
+      <p class="mt-3 text-lg text-slate-300">지금까지 담당자가 지도를 보며 하나씩 내리던 판단을, 시스템이 매일 정해진 시간에 대신합니다.</p>
+    </div>
+
+    <!-- 5단계 플로우 (비IT: 한글만, 기술 요소 숨김) -->
+    <div class="rounded-3xl p-6 md:p-8 backdrop-blur-3xl bg-white/5 border border-white/10 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-stretch">
+        <div class="rounded-2xl p-5 bg-white/5 border border-white/10 text-center spring-hover">
+          <i data-lucide="inbox" class="w-7 h-7 mx-auto text-purple-400"></i>
+          <div class="mt-3 font-semibold">신청 모으기</div>
+          <p class="mt-1.5 text-xs text-slate-400 leading-relaxed">기업 신청은 지금처럼 기존 시스템으로 접수됩니다</p>
+        </div>
+        <div class="rounded-2xl p-5 bg-white/5 border border-white/10 text-center spring-hover">
+          <i data-lucide="map-pin" class="w-7 h-7 mx-auto text-cyan-400"></i>
+          <div class="mt-3 font-semibold">주소를 좌표로</div>
+          <p class="mt-1.5 text-xs text-slate-400 leading-relaxed">잘못되거나 오래된 주소를 정리하고, 확인이 필요한 건은 별도 목록에 남깁니다.</p>
+        </div>
+        <div class="rounded-2xl p-5 bg-white/5 border border-white/10 text-center spring-hover">
+          <i data-lucide="boxes" class="w-7 h-7 mx-auto text-pink-400"></i>
+          <div class="mt-3 font-semibold">가까운 기업 묶기</div>
+          <p class="mt-1.5 text-xs text-slate-400 leading-relaxed">근처 기업 2~3곳을 한 번에 다녀올 수 있게 묶습니다</p>
+        </div>
+        <div class="rounded-2xl p-5 bg-white/5 border border-white/10 text-center spring-hover">
+          <i data-lucide="user-check" class="w-7 h-7 mx-auto text-emerald-400"></i>
+          <div class="mt-3 font-semibold">전문가 정하기</div>
+          <p class="mt-1.5 text-xs text-slate-400 leading-relaxed">배정 건수가 적은 후보 중 가장 가까운 전문가를 선정합니다.</p>
+        </div>
+        <div class="rounded-2xl p-5 bg-white/5 border border-white/10 text-center spring-hover">
+          <i data-lucide="check-circle-2" class="w-7 h-7 mx-auto text-amber-400"></i>
+          <div class="mt-3 font-semibold">확정·바로 조회</div>
+          <p class="mt-1.5 text-xs text-slate-400 leading-relaxed">확정된 배정은 전문가의 기존 홈페이지에 바로 표시됩니다.</p>
+        </div>
+      </div>
+      <p class="mt-5 text-center text-xs text-slate-500">
+        다섯 단계는 모두 자동으로 진행됩니다. 배정하기 어려운 건만 사유와 함께 대기 목록에 남아 담당자가 확인할 수 있습니다.
+      </p>
+    </div>
+
+    <!-- 공고의 수용 기준 4가지에 그대로 대응 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+          <i data-lucide="check-circle-2" class="w-4 h-4"></i> 원하신 것 1
+        </div>
+        <p class="mt-2 text-sm text-slate-300 leading-relaxed">"담당자 조작 없이 배정이 확정된다" — 접수부터 확정까지 사람 손이 필요 없습니다</p>
+      </div>
+      <div class="rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+          <i data-lucide="check-circle-2" class="w-4 h-4"></i> 원하신 것 2
+        </div>
+        <p class="mt-2 text-sm text-slate-300 leading-relaxed">"전문가가 홈페이지에서 바로 본다" — 확정 즉시 기존 조회 화면에 나타납니다</p>
+      </div>
+      <div class="rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+          <i data-lucide="check-circle-2" class="w-4 h-4"></i> 원하신 것 3
+        </div>
+        <p class="mt-2 text-sm text-slate-300 leading-relaxed">"물량이 한 사람에게 몰리지 않는다" — 같은 도 내의 배정 건수 차이가 합의한 범위를 넘지 않도록 설계합니다.</p>
+      </div>
+      <div class="rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+          <i data-lucide="check-circle-2" class="w-4 h-4"></i> 원하신 것 4
+        </div>
+        <p class="mt-2 text-sm text-slate-300 leading-relaxed">"배정 안 된 건을 놓치지 않는다" — 대기 목록에 사유와 함께 남아 언제든 확인됩니다</p>
+      </div>
+    </div>
+
+    <!-- 불안 해소 뱃지 -->
+    <div class="mt-8 flex flex-wrap justify-center gap-2 text-xs">
+      <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">🛡️ 기존 서비스에 영향 없이 연결</span>
+      <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">🛡️ 잘못된 배정은 클릭 한 번으로 되돌리기</span>
+      <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">🛡️ "왜 이 전문가였는지" 모든 배정에 근거가 남습니다</span>
+    </div>
+  </section>
+
+  <!-- =========== PORTFOLIO — 배정 현황판 (Bento) =========== -->
+  <section id="portfolio" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="mb-10 scroll-reveal">
+      <div class="text-xs font-mono text-emerald-400 mb-3">02 · 배정 현황</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">엑셀 대조 대신, 한눈에 보이는 현황판</h2>
+      <p class="mt-3 text-lg text-slate-300">
+        오늘 몇 건이 처리됐는지, 특정 전문가에게 일이 몰리지는 않는지를 한눈에 확인할 수 있습니다.
+      </p>
+      <div class="mt-3 inline-flex items-center gap-2 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1">
+        <i data-lucide="info" class="w-3.5 h-3.5"></i>
+        아래 화면은 추가 도입 검토용 "배정 현황판"의 미리보기입니다 · 모든 숫자는 모의 데이터
+      </div>
+    </div>
+
+    <!-- Bento grid KPIs -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6">
+      <!-- Big KPI -->
+      <div class="col-span-2 md:col-span-2 md:row-span-2 rounded-3xl p-8 backdrop-blur-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/20 relative overflow-hidden">
+        <div class="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 rounded-full bg-purple-500/10 blur-3xl"></div>
+        <div class="relative">
+          <div class="text-sm text-slate-400 mb-2">오늘 자동으로 확정된 배정</div>
+          <div class="text-5xl md:text-6xl font-bold leading-none">
+            <span data-countup="71">0</span><span class="text-2xl text-slate-400"> 건</span>
+          </div>
+          <div class="mt-4 flex items-center gap-2 text-emerald-400">
+            <i data-lucide="mouse-pointer-click" class="w-4 h-4"></i>
+            <span class="font-semibold">담당자 클릭 0회</span>
+            <span class="text-slate-400 text-sm">· 지도 검색 0회</span>
+          </div>
+          <p class="mt-4 text-xs text-slate-400 leading-relaxed">
+            기존 방식이라면 담당자가 지도를 71번 검색하고, 결과를 71번 입력해야 하는 업무량입니다.
+          </p>
+        </div>
+      </div>
+
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="text-xs text-slate-400 mb-1">오늘 만들어진 묶음</div>
+        <div class="text-2xl font-bold text-cyan-400"><span data-countup="28">0</span> 개</div>
+        <div class="mt-1 text-xs text-slate-500">기업 2~3곳씩 한 번에</div>
+      </div>
+
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="text-xs text-slate-400 mb-1">평균 이동 거리</div>
+        <div class="text-2xl font-bold text-emerald-400"><span data-countup-decimal="6.2">0</span> km</div>
+        <div class="mt-1 text-xs text-slate-500">모의 배정 기준</div>
+      </div>
+
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="text-xs text-slate-400 mb-1">확인이 필요한 대기 건</div>
+        <div class="text-2xl font-bold text-amber-400"><span data-countup="3">0</span> 건</div>
+        <div class="mt-1 text-xs text-slate-500">사유와 함께 목록으로</div>
+      </div>
+
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="text-xs text-slate-400 mb-1">근거가 기록된 배정</div>
+        <div class="text-2xl font-bold"><span data-countup="100">0</span><span class="text-base">%</span></div>
+        <div class="mt-1 text-xs text-slate-500">민원·감사 대응용</div>
+      </div>
+    </div>
+
+    <!-- 도별 편차 게이지 + 전문가 부하 히트맵 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <!-- 도별 편차 게이지 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="font-semibold">도별 균등 상태</h3>
+          <span class="text-xs text-slate-500">허용 편차 2건 기준</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-5">같은 도 안에서 가장 많은 분과 가장 적은 분의 건수 차이</p>
+
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between text-sm mb-1.5">
+              <span>서울</span><span class="text-emerald-400 font-mono">차이 0건 · 여유</span>
+            </div>
+            <div class="gauge-track"><div class="gauge-fill bg-emerald-500/70" style="width: 8%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1.5">
+              <span>충남</span><span class="text-amber-400 font-mono">차이 1건 · 상한 근접</span>
+            </div>
+            <div class="gauge-track"><div class="gauge-fill bg-amber-500/70" style="width: 50%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1.5">
+              <span>경기</span><span class="text-red-400 font-mono">차이 2건 · 상한 도달</span>
+            </div>
+            <div class="gauge-track"><div class="gauge-fill bg-red-500/70" style="width: 100%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1.5">
+              <span>강원</span><span class="text-emerald-400 font-mono">차이 0건 · 여유</span>
+            </div>
+            <div class="gauge-track"><div class="gauge-fill bg-emerald-500/70" style="width: 8%"></div></div>
+          </div>
+        </div>
+        <p class="mt-5 text-xs text-slate-500 leading-relaxed">
+          상한에 도달한 도에서는 건수가 많은 전문가에게 더 배정되지 않도록 시스템이 자동으로 막습니다.
+        </p>
+      </div>
+
+      <!-- 전문가별 당월 배정 (막대 차트) -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold">전문가별 이번 달 배정</h3>
+          <span class="text-xs text-slate-500">경기 지역 예시</span>
+        </div>
+        <div class="h-56">
+          <canvas id="chart-experts"></canvas>
+        </div>
+        <p class="mt-3 text-xs text-slate-500">막대 길이가 비슷할수록 공평하게 돌아가고 있다는 뜻입니다.</p>
+      </div>
+
+      <!-- 전문가 부하 히트맵 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="font-semibold">전문가 부하 한눈에</h3>
+          <span class="text-xs text-slate-500">색으로 몰림 확인</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-4">초록=여유 · 노랑=상한 근접 · 빨강=상한 도달</p>
+        <div class="grid grid-cols-4 gap-2">
+          <div class="heat-cell heat-ok"><div class="font-semibold">김OO</div><div class="mt-0.5 font-mono">12건</div></div>
+          <div class="heat-cell heat-ok"><div class="font-semibold">이OO</div><div class="mt-0.5 font-mono">11건</div></div>
+          <div class="heat-cell heat-over"><div class="font-semibold">최OO</div><div class="mt-0.5 font-mono">13건</div></div>
+          <div class="heat-cell heat-ok"><div class="font-semibold">정OO</div><div class="mt-0.5 font-mono">11건</div></div>
+          <div class="heat-cell heat-near"><div class="font-semibold">한OO</div><div class="mt-0.5 font-mono">12건</div></div>
+          <div class="heat-cell heat-ok"><div class="font-semibold">윤OO</div><div class="mt-0.5 font-mono">11건</div></div>
+          <div class="heat-cell heat-ok"><div class="font-semibold">서OO</div><div class="mt-0.5 font-mono">12건</div></div>
+          <div class="heat-cell heat-ok"><div class="font-semibold">조OO</div><div class="mt-0.5 font-mono">11건</div></div>
+        </div>
+        <p class="mt-4 text-xs text-slate-500 leading-relaxed">
+          현재 엑셀에서 수작업으로 확인하던 내용을, 도입 후에는 색상만으로도 빠르게 파악할 수 있습니다.
+        </p>
+      </div>
+    </div>
+
+    <!-- 오늘 배정 내역 테이블 -->
+    <div class="mt-6 rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 overflow-hidden">
+      <div class="flex items-center justify-between p-6 border-b border-white/10">
+        <h3 class="font-semibold">오늘 배정 내역 (일부)</h3>
+        <div class="flex items-center gap-2 text-xs text-slate-400">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+          가상 상호·마스킹 성명의 모의 데이터
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-slate-400 border-b border-white/5">
+              <th class="px-6 py-3">묶음 번호</th>
+              <th class="px-4 py-3">묶인 기업</th>
+              <th class="px-4 py-3">전문가</th>
+              <th class="px-4 py-3 text-right">거리</th>
+              <th class="px-4 py-3">상태</th>
+              <th class="px-4 py-3">근거</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-white/5 hover:bg-white/5 transition">
+              <td class="px-6 py-3.5 font-mono text-xs text-slate-400">2026-00186</td>
+              <td class="px-4 py-3.5">(주)한빛정밀 · 대성테크(주)</td>
+              <td class="px-4 py-3.5">김OO <span class="text-xs text-slate-500">(경기)</span></td>
+              <td class="px-4 py-3.5 text-right font-mono">5.1km</td>
+              <td class="px-4 py-3.5"><span class="rounded-full px-2 py-0.5 text-xs bg-emerald-500/20 text-emerald-300">배정확정</span></td>
+              <td class="px-4 py-3.5 text-xs text-slate-400">건수 여유 + 최단 거리</td>
+            </tr>
+            <tr class="border-b border-white/5 hover:bg-white/5 transition">
+              <td class="px-6 py-3.5 font-mono text-xs text-slate-400">2026-00187</td>
+              <td class="px-4 py-3.5">(주)두리엔지 · 세명산업(주) · (주)해든기공</td>
+              <td class="px-4 py-3.5">이OO <span class="text-xs text-slate-500">(경기)</span></td>
+              <td class="px-4 py-3.5 text-right font-mono">3.8km</td>
+              <td class="px-4 py-3.5"><span class="rounded-full px-2 py-0.5 text-xs bg-blue-500/20 text-blue-300">진행중</span></td>
+              <td class="px-4 py-3.5 text-xs text-slate-400">진행 중 건수 최소</td>
+            </tr>
+            <tr class="border-b border-white/5 hover:bg-white/5 transition">
+              <td class="px-6 py-3.5 font-mono text-xs text-slate-400">2026-00188</td>
+              <td class="px-4 py-3.5">(주)미르정공</td>
+              <td class="px-4 py-3.5 text-slate-500">—</td>
+              <td class="px-4 py-3.5 text-right font-mono text-slate-500">—</td>
+              <td class="px-4 py-3.5"><span class="rounded-full px-2 py-0.5 text-xs bg-amber-500/20 text-amber-300">대기</span></td>
+              <td class="px-4 py-3.5 text-xs text-slate-400">주소 확인 필요 → 보정 목록</td>
+            </tr>
+            <tr class="hover:bg-white/5 transition">
+              <td class="px-6 py-3.5 font-mono text-xs text-slate-400">2026-00189</td>
+              <td class="px-4 py-3.5">한결금속(주) · (주)서진테크</td>
+              <td class="px-4 py-3.5">윤OO <span class="text-xs text-slate-500">(충남)</span></td>
+              <td class="px-4 py-3.5 text-right font-mono">7.4km</td>
+              <td class="px-4 py-3.5"><span class="rounded-full px-2 py-0.5 text-xs bg-emerald-500/20 text-emerald-300">배정확정</span></td>
+              <td class="px-4 py-3.5 text-xs text-slate-400">균등 유지 위해 2순위 거리 선택</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ROI 계산기 (수작업 절감) -->
+    <div class="mt-6 rounded-2xl p-6 md:p-8 backdrop-blur-3xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/5 border border-emerald-500/20">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <div>
+          <h3 class="text-xl font-semibold">얼마나 편해질까요? 직접 움직여 보세요</h3>
+          <p class="mt-2 text-sm text-slate-300 leading-relaxed">
+            지금은 1건마다 지도 검색 → 눈으로 판단 → 입력 → 엑셀 대조를 거칩니다.
+            건당 약 6분으로 보고, 하루 신청 건수만 조정해 보세요.
+          </p>
+          <div class="mt-6">
+            <label for="calc-daily" class="text-sm text-slate-400">하루 신청 건수</label>
+            <div class="flex items-center gap-4 mt-2">
+              <input type="range" min="20" max="150" value="70" id="calc-daily" class="flex-1" />
+              <span id="calc-daily-display" class="font-mono font-bold text-lg w-16 text-right">70건</span>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="rounded-xl p-5 bg-white/5 border border-white/10">
+            <div class="text-xs text-slate-400">한 달에 줄어드는 수작업</div>
+            <div class="mt-1 text-3xl font-bold text-emerald-400"><span id="calc-monthly">154</span><span class="text-base">시간</span></div>
+          </div>
+          <div class="rounded-xl p-5 bg-white/5 border border-white/10">
+            <div class="text-xs text-slate-400">1년으로 환산하면</div>
+            <div class="mt-1 text-3xl font-bold text-emerald-400"><span id="calc-yearly">1,848</span><span class="text-base">시간</span></div>
+          </div>
+          <div class="col-span-2 text-xs text-slate-500">
+            건당 6분·월 22일 근무 기준의 단순 추정입니다. 정확한 절감량은 착수 후 실제 데이터로 함께 확인합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== ENGINE — 배정 규칙 =========== -->
+  <section id="engine" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="mb-10 scroll-reveal">
+      <div class="text-xs font-mono text-pink-400 mb-3">03 · 배정 규칙</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">공평함은 지키는 선,<br class="hidden md:block" /> 거리는 그 안에서 최선</h2>
+      <p class="mt-3 text-lg text-slate-300 max-w-3xl">
+        "가까운 순으로만 주면 몰리고, 고르게만 나누면 멀어진다" — 공고에 적어주신 바로 그 고민에 대한 저희 답입니다.
+        두 목표를 같은 저울에 올리지 않고, <span class="text-pink-300 font-semibold">순서를 나눕니다.</span>
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <!-- 2단계 규칙 -->
+      <div class="rounded-2xl p-6 md:p-8 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0">
+            <span class="font-bold text-purple-300">1</span>
+          </div>
+          <div>
+            <h3 class="font-semibold text-lg">먼저, 공평함부터 지킵니다</h3>
+            <p class="mt-2 text-sm text-slate-300 leading-relaxed">
+              이번 배정을 받아도 같은 도 안 건수 차이가 <span class="text-purple-300">합의한 허용 범위(예: 2건)</span>를
+              넘지 않는 전문가만 후보로 남깁니다. 그래서 "몰리지 않는다"는 약속이 구조적으로 지켜집니다.
+            </p>
+          </div>
+        </div>
+        <div class="my-5 border-t border-white/10"></div>
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
+            <span class="font-bold text-emerald-300">2</span>
+          </div>
+          <div>
+            <h3 class="font-semibold text-lg">그 안에서, 가장 가까운 분으로</h3>
+            <p class="mt-2 text-sm text-slate-300 leading-relaxed">
+              남은 후보 중 진행 중인 일이 적고 가장 가까운 전문가를 정합니다.
+              적합한 전문가가 없으면 억지로 배정하지 않고 <span class="text-amber-300">대기</span> 상태로 남겨 담당자가 확인할 수 있게 합니다.
+            </p>
+          </div>
+        </div>
+        <div class="mt-6 rounded-xl p-4 bg-white/5 border border-white/10 text-xs text-slate-400 leading-relaxed">
+          💡 조이고 풀 것은 "허용 범위" 숫자 하나뿐입니다. 숫자를 줄이면 더 공평해지고,
+          늘리면 이동 거리가 짧아집니다 — 프로그램을 고치지 않고 설정만 바꿔 조정합니다.
+        </div>
+      </div>
+
+      <!-- 왜 이 전문가? 설명 카드 -->
+      <div class="rounded-2xl p-6 md:p-8 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-lg">"왜 이 전문가였나요?" — 클릭 한 번이면 나옵니다</h3>
+        </div>
+        <div class="rounded-xl p-5 bg-slate-900/60 border border-white/10">
+          <div class="flex items-center gap-2 text-xs text-slate-400 mb-3">
+            <span class="font-mono">묶음 2026-00186</span>
+            <span>·</span><span>(주)한빛정밀 외 1곳</span>
+            <span class="ml-auto rounded-full px-2 py-0.5 bg-emerald-500/20 text-emerald-300">배정확정</span>
+          </div>
+          <div class="space-y-2.5 text-sm">
+            <div class="flex items-start gap-2">
+              <i data-lucide="user-check" class="w-4 h-4 text-emerald-400 mt-0.5 shrink-0"></i>
+              <span><b>김OO 전문가</b>로 확정 — 두 기업까지 평균 5.1km로 후보 중 가장 가깝습니다</span>
+            </div>
+            <div class="flex items-start gap-2">
+              <i data-lucide="scale" class="w-4 h-4 text-purple-400 mt-0.5 shrink-0"></i>
+              <span>배정 후에도 경기 지역 건수 차이가 허용 범위(2건) 안에 유지됩니다</span>
+            </div>
+            <div class="flex items-start gap-2">
+              <i data-lucide="list-checks" class="w-4 h-4 text-cyan-400 mt-0.5 shrink-0"></i>
+              <span>함께 검토한 후보 3명(이OO·최OO·정OO)과 제외 사유가 같이 기록되어 있습니다</span>
+            </div>
+          </div>
+        </div>
+        <p class="mt-4 text-xs text-slate-500 leading-relaxed">
+          모든 배정 건에 이 기록이 자동으로 남습니다. 전문가 문의나 민원, 내부 감사가 있을 때
+          "그때 왜 그랬는지"를 찾느라 기억을 더듬지 않으셔도 됩니다.
+        </p>
+      </div>
+    </div>
+
+    <!-- 시뮬레이션 A/B -->
+    <div class="rounded-3xl p-6 md:p-8 backdrop-blur-3xl bg-gradient-to-br from-purple-500/10 to-pink-500/5 border border-purple-500/20">
+      <div class="flex flex-wrap items-center gap-3 mb-2">
+        <h3 class="text-xl font-semibold">규칙은 감이 아니라, 모의 배정으로 정합니다</h3>
+        <span class="rounded-full px-3 py-1 text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">검증 2주 · 조정 3회 기본 포함</span>
+      </div>
+      <p class="text-sm text-slate-300 max-w-3xl leading-relaxed">
+        과거의 실제 신청 건으로 "이 규칙이면 이렇게 배정됐을 것"을 미리 돌려보고, 회차마다 비교표를 드립니다.
+        실제 데이터는 전혀 건드리지 않습니다. 아래에서 허용 범위를 움직이며 어떤 것을 얻고 잃는지 보세요.
+      </p>
+
+      <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+        <div>
+          <label for="sim-dev" class="text-sm text-slate-400">건수 차이 허용 범위 (같은 도 안)</label>
+          <div class="flex items-center gap-4 mt-2">
+            <input type="range" min="1" max="4" value="2" step="1" id="sim-dev" class="flex-1" />
+            <span id="sim-dev-display" class="font-mono font-bold text-lg w-14 text-right">2건</span>
+          </div>
+          <p id="sim-comment" class="mt-4 text-sm text-slate-300 leading-relaxed rounded-xl p-4 bg-white/5 border border-white/10">
+            균형 잡힌 기본안입니다. 지금 엑셀로 관리하시는 감각과 가장 가깝습니다.
+          </p>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="rounded-xl p-4 bg-white/5 border border-white/10 text-center">
+            <div class="text-xs text-slate-400">평균 이동 거리</div>
+            <div class="mt-1 text-2xl font-bold text-emerald-400"><span id="sim-dist">6.2</span><span class="text-sm">km</span></div>
+          </div>
+          <div class="rounded-xl p-4 bg-white/5 border border-white/10 text-center">
+            <div class="text-xs text-slate-400">하루 대기 건</div>
+            <div class="mt-1 text-2xl font-bold text-amber-400"><span id="sim-wait">3</span><span class="text-sm">건</span></div>
+          </div>
+          <div class="rounded-xl p-4 bg-white/5 border border-white/10 text-center">
+            <div class="text-xs text-slate-400">수기 배정과 일치</div>
+            <div class="mt-1 text-2xl font-bold text-purple-300"><span id="sim-match">87</span><span class="text-sm">%</span></div>
+          </div>
+          <div class="col-span-3 text-xs text-slate-500 text-center">모의 수치 예시 — 실제 값은 검증 단계에서 귀사 데이터로 산출됩니다</div>
+        </div>
+      </div>
+
+      <div class="mt-6 rounded-xl p-4 bg-white/5 border border-white/10">
+        <div class="text-sm font-semibold mb-3">묶음 반경도 같은 방식으로 정합니다 — 시작 첫 주에 실제 데이터로 이 표를 보여 드립니다</div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs text-slate-400 border-b border-white/10">
+                <th class="py-2 pr-4">반경</th>
+                <th class="py-2 pr-4 text-right">하루 묶음 수</th>
+                <th class="py-2 pr-4 text-right">2~3곳 묶임 비율</th>
+                <th class="py-2 text-right">묶음 안 최대 거리</th>
+              </tr>
+            </thead>
+            <tbody class="font-mono text-xs">
+              <tr class="border-b border-white/5"><td class="py-2 pr-4 font-sans">3km</td><td class="py-2 pr-4 text-right">34개</td><td class="py-2 pr-4 text-right">58%</td><td class="py-2 text-right">2.8km</td></tr>
+              <tr class="border-b border-white/5 bg-purple-500/5"><td class="py-2 pr-4 font-sans">5km <span class="text-purple-300">← 기본안</span></td><td class="py-2 pr-4 text-right">28개</td><td class="py-2 pr-4 text-right">76%</td><td class="py-2 text-right">4.6km</td></tr>
+              <tr><td class="py-2 pr-4 font-sans">10km</td><td class="py-2 pr-4 text-right">24개</td><td class="py-2 pr-4 text-right">89%</td><td class="py-2 text-right">9.1km</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3 text-xs text-slate-500">수치는 형식 예시입니다. "몇 km가 좋을까"를 짐작으로 정하지 않고, 이런 표를 함께 보며 정하자는 제안입니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== OPERATOR — 추가 도입 검토 관리 화면 6종 =========== -->
+  <section id="operator" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="mb-10 scroll-reveal">
+      <div class="text-xs font-mono text-cyan-400 mb-3">04 · 관리 화면 (선택 도입)</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">원하실 때 얹을 수 있는 관리 화면 6종</h2>
+      <p class="mt-3 text-lg text-slate-300 max-w-3xl">
+        공고에 적어주신 "추가 도입 검토 항목"입니다. <span class="text-cyan-300">이번 800만원 범위에는 들어있지 않고</span>,
+        도입하지 않으셔도 시스템은 완결적으로 동작합니다. 다만 이번 개발을 처음부터
+        "나중에 화면 얹기 쉬운 구조"로 만들기 때문에, 아래 규모로 가능합니다.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+      <!-- 81 전문가 관리 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 spring-hover flex flex-col">
+        <div class="flex items-center justify-between">
+          <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+            <i data-lucide="users" class="w-5 h-5 text-purple-300"></i>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">화면 1</span>
+        </div>
+        <h3 class="mt-4 font-semibold">전문가 관리</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed flex-1">
+          전문가 명단·소속 지역·배정 받을 수 있는지 여부를 화면에서 바로 수정.
+          지금의 "개발자에게 부탁해서 수정"이 사라집니다.
+        </p>
+        <div class="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-sm">
+          <span class="text-slate-400">4~6일</span>
+          <span class="font-bold text-cyan-300">120~180만원</span>
+        </div>
+      </div>
+
+      <!-- 82 배정 현황판 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 spring-hover flex flex-col">
+        <div class="flex items-center justify-between">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+            <i data-lucide="bar-chart-3" class="w-5 h-5 text-emerald-300"></i>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">화면 2</span>
+        </div>
+        <h3 class="mt-4 font-semibold">배정 현황판</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed flex-1">
+          위에서 보신 현황판이 바로 이 화면입니다. 전문가별 건수·균등 상태·오늘 처리 결과를
+          색과 숫자로 한눈에.
+        </p>
+        <div class="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-sm">
+          <span class="text-slate-400">3~5일</span>
+          <span class="font-bold text-cyan-300">90~150만원</span>
+        </div>
+      </div>
+
+      <!-- 83 실패 건 처리 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 spring-hover flex flex-col">
+        <div class="flex items-center justify-between">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+            <i data-lucide="inbox" class="w-5 h-5 text-amber-300"></i>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">화면 3</span>
+        </div>
+        <h3 class="mt-4 font-semibold">대기 건 처리·수동 재배정</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed flex-1">
+          자동 배정이 안 된 건만 모아 보여주고, 사유별로 "이렇게 하시면 됩니다" 추천과 함께
+          클릭으로 재배정.
+        </p>
+        <div class="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-sm">
+          <span class="text-slate-400">4~6일</span>
+          <span class="font-bold text-cyan-300">120~180만원</span>
+        </div>
+      </div>
+
+      <!-- 84 이력·통계 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 spring-hover flex flex-col">
+        <div class="flex items-center justify-between">
+          <div class="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center">
+            <i data-lucide="history" class="w-5 h-5 text-pink-300"></i>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">화면 4</span>
+        </div>
+        <h3 class="mt-4 font-semibold">배정 이력·통계</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed flex-1">
+          "왜 이 전문가였는지" 기록을 기간별·지역별로 조회하고 통계로 집계.
+          이번 범위에서 쌓는 기록을 그대로 보여주는 화면입니다.
+        </p>
+        <div class="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-sm">
+          <span class="text-slate-400">4~6일</span>
+          <span class="font-bold text-cyan-300">120~180만원</span>
+        </div>
+      </div>
+
+      <!-- 85 규칙 조정 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 spring-hover flex flex-col">
+        <div class="flex items-center justify-between">
+          <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+            <i data-lucide="sliders-horizontal" class="w-5 h-5 text-cyan-300"></i>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">화면 5</span>
+        </div>
+        <h3 class="mt-4 font-semibold">규칙 숫자 조정</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed flex-1">
+          묶음 반경·허용 편차를 화면에서 직접 조정하고, 적용 전 모의 배정으로 결과를 미리 확인.
+          규칙이 설정값 구조라 화면만 얹으면 됩니다.
+        </p>
+        <div class="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-sm">
+          <span class="text-slate-400">2~3일</span>
+          <span class="font-bold text-cyan-300">60~100만원</span>
+        </div>
+      </div>
+
+      <!-- 86 알림 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 spring-hover flex flex-col">
+        <div class="flex items-center justify-between">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+            <i data-lucide="bell-ring" class="w-5 h-5 text-emerald-300"></i>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">화면 6</span>
+        </div>
+        <h3 class="mt-4 font-semibold">전문가 자동 알림</h3>
+        <p class="mt-2 text-sm text-slate-400 leading-relaxed flex-1">
+          배정이 확정되면 전문가에게 문자·알림톡·메일 중 협의한 채널로 자동 발송.
+          하루 1통 요약을 기본으로, 알림 피로 없이.
+        </p>
+        <div class="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-sm">
+          <span class="text-slate-400">3~4일</span>
+          <span class="font-bold text-cyan-300">90~130만원</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 rounded-2xl p-6 backdrop-blur-3xl bg-gradient-to-r from-cyan-500/10 to-emerald-500/5 border border-cyan-500/20 flex flex-col md:flex-row items-start md:items-center gap-4">
+      <i data-lucide="package" class="w-8 h-8 text-cyan-300 shrink-0"></i>
+      <div class="flex-1">
+        <div class="font-semibold">6종을 한 번에 도입하시면</div>
+        <p class="text-sm text-slate-300 mt-1">
+          로그인·공통 화면 틀을 공유해 합계 대비 <b class="text-cyan-300">약 20~30% 절감</b> —
+          약 18~24일, <b class="text-cyan-300">450~700만원</b> 수준으로 추정됩니다. (개략 견적 · 착수 시 확정)
+        </p>
+      </div>
+      <span class="text-xs text-slate-500 shrink-0">이번 계약과 무관 · 견적만 미리 드립니다</span>
+    </div>
+  </section>
+
+  <!-- =========== INSIGHTS — 아직 정하지 않은 것들 =========== -->
+  <section id="insights" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="mb-10 scroll-reveal">
+      <div class="inline-flex items-center gap-2 text-xs font-mono text-amber-400 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+        05 · 함께 정할 것들
+        <span class="rounded-full px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-semibold">공고 분석에서 발견</span>
+      </div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">시작 전에 정해두면 좋은 3가지</h2>
+      <p class="mt-3 text-lg text-slate-300 max-w-3xl">
+        공고를 꼼꼼히 읽고, 이전 공고까지 비교해 보았습니다. 아래 3가지만 미리 정해지면
+        나머지는 저희가 준비된 대로 진행합니다.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-10">
+      <!-- 1. 즉시 확정 vs 묶음 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-amber-500/20 hover:bg-white/10 transition-all">
+        <div class="text-xs text-amber-400 font-semibold mb-2">가장 중요한 결정</div>
+        <h3 class="text-lg font-semibold leading-snug">"바로 배정"과 "묶어서 배정"은 서로 당깁니다</h3>
+        <p class="mt-3 text-sm text-slate-300 leading-relaxed">
+          신청이 들어오자마자 배정하면, 함께 묶을 이웃 신청이 아직 없을 수 있습니다.
+          둘 다 완벽하게는 안 되기에, 어느 쪽에 무게를 둘지 먼저 정해야 합니다.
+        </p>
+        <div class="mt-4 space-y-2 text-sm">
+          <div class="rounded-lg p-3 bg-emerald-500/10 border border-emerald-500/20">
+            <span class="text-emerald-300 font-semibold">저희 권장</span> — 하루 1~2번 모아서 배정.
+            묶음이 잘 만들어지고 안정적이며, 조회 반영도 당일 안에 됩니다.
+          </div>
+          <div class="rounded-lg p-3 bg-white/5 border border-white/10 text-slate-400">
+            다른 선택 — 몇 시간만 모았다가 배정. 반영은 빨라지지만 묶음 품질은 조금 손해입니다.
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 기존 시스템 자료 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+        <div class="text-xs text-purple-400 font-semibold mb-2">일정을 좌우하는 것</div>
+        <h3 class="text-lg font-semibold leading-snug">기존 시스템 자료를 받을 수 있는 상태인가요?</h3>
+        <p class="mt-3 text-sm text-slate-300 leading-relaxed">
+          이전 공고 때 "자료를 넘겨받는 중"이라고 하셨습니다. 데이터 구조 자료와 연습용 환경이
+          준비되어 있어야 첫 주부터 속도가 납니다.
+        </p>
+        <div class="mt-4 space-y-2 text-sm">
+          <div class="rounded-lg p-3 bg-emerald-500/10 border border-emerald-500/20">
+            <span class="text-emerald-300 font-semibold">저희 대비책</span> — 기존 시스템을 전혀 고치지 않는
+            연결 방식이라, 기존 개발사께는 "자료 확인" 정도의 협조만 부탁드리면 됩니다.
+          </div>
+          <div class="rounded-lg p-3 bg-white/5 border border-white/10 text-slate-400">
+            제안 — "자료 제공일 = 시작일"로 계약서에 명시해, 기다리는 날이 기간에서 빠지지 않게 합니다.
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 조정 절차 -->
+      <div class="rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+        <div class="text-xs text-pink-400 font-semibold mb-2">서로를 지키는 약속</div>
+        <h3 class="text-lg font-semibold leading-snug">"규칙 조정"의 횟수를 미리 정해요</h3>
+        <p class="mt-3 text-sm text-slate-300 leading-relaxed">
+          공고에 "검증 중 규칙 조정은 계약 범위"라고 적으셨습니다. 좋은 조항이지만,
+          끝이 없으면 서로 힘들어집니다.
+        </p>
+        <div class="mt-4 space-y-2 text-sm">
+          <div class="rounded-lg p-3 bg-emerald-500/10 border border-emerald-500/20">
+            <span class="text-emerald-300 font-semibold">저희 제안</span> — 검증 2주 안에 조정 3회.
+            회차마다 "무엇이 얼마나 좋아졌는지" 비교표를 드리고, 다음 날 새 결과를 보실 수 있습니다.
+          </div>
+          <div class="rounded-lg p-3 bg-white/5 border border-white/10 text-slate-400">
+            3회로 부족하면 — 원인을 정리해 추가 조정 범위를 협의드립니다. 일정이 늘어지는 상황을 함께 막는 장치입니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 이전 공고 비교 인사이트 -->
+    <div class="rounded-3xl p-6 md:p-8 backdrop-blur-3xl bg-white/5 border border-white/10">
+      <div class="flex flex-wrap items-center gap-3 mb-2">
+        <h3 class="text-xl font-semibold">이전 공고(157444)까지 비교해 보고 왔습니다</h3>
+        <span class="rounded-full px-3 py-1 text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">지원자 대부분이 안 하는 준비</span>
+      </div>
+      <p class="text-sm text-slate-300 max-w-3xl leading-relaxed">
+        이번 공고가 왜 다시 올라왔는지, 무엇이 달라졌는지를 파악한 상태로 지원합니다.
+        첫 미팅에서 "무엇을 만들지"부터 다시 설명하실 필요가 없습니다.
+      </p>
+      <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="rounded-xl p-5 bg-white/5 border border-white/10 text-center">
+          <div class="text-xs text-slate-400">예산</div>
+          <div class="mt-1 text-2xl font-bold text-emerald-400"><span data-countup-decimal="5.3">0</span>배</div>
+          <div class="mt-1 text-xs text-slate-500">150만원 → 800만원</div>
+        </div>
+        <div class="rounded-xl p-5 bg-white/5 border border-white/10 text-center">
+          <div class="text-xs text-slate-400">기간</div>
+          <div class="mt-1 text-2xl font-bold text-emerald-400"><span data-countup-decimal="3.8">0</span>배</div>
+          <div class="mt-1 text-xs text-slate-500">8일 → 30일</div>
+        </div>
+        <div class="rounded-xl p-5 bg-white/5 border border-white/10 text-center">
+          <div class="text-xs text-slate-400">이전 공고에서 확인한 규모</div>
+          <div class="mt-1 text-2xl font-bold"><span data-countup="60">0</span>~<span data-countup="80">0</span>건</div>
+          <div class="mt-1 text-xs text-slate-500">하루 신청 (추정 · 재확인 예정)</div>
+        </div>
+        <div class="rounded-xl p-5 bg-white/5 border border-white/10 text-center">
+          <div class="text-xs text-slate-400">전문가</div>
+          <div class="mt-1 text-2xl font-bold">약 <span data-countup="40">0</span>명</div>
+          <div class="mt-1 text-xs text-slate-500">추정 · 재확인 예정</div>
+        </div>
+      </div>
+      <div class="mt-5 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+        <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+          <div class="text-xs text-purple-300 font-semibold mb-1">달라진 점 1</div>
+          단순한 "같은 지역 우선" 규칙이 → 거리·묶음·균등을 함께 보는 정교한 규칙으로 진화했습니다.
+        </div>
+        <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+          <div class="text-xs text-purple-300 font-semibold mb-1">달라진 점 2</div>
+          되돌리기(회수)와 근거 기록이 정식 범위로 들어왔습니다 — 자동 확정의 안전장치를 이미 챙기고 계십니다.
+        </div>
+        <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+          <div class="text-xs text-purple-300 font-semibold mb-1">저희가 읽은 뜻</div>
+          정답이 한 번에 나오지 않는 문제임을 알고 계시다는 것 — 그래서 저희 제안의 중심을 "숫자를 바꿔가며 비교하는 구조"에 두었습니다.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== QUESTIONS — 여쭤보고 싶은 것들 =========== -->
+  <section id="questions" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="mb-10 scroll-reveal">
+      <div class="inline-flex items-center gap-2 text-xs font-mono text-purple-400 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+        06 · 질문
+        <span class="rounded-full px-2 py-0.5 bg-purple-500/20 text-purple-300 text-[10px] font-semibold">A/B만 골라주시면 됩니다</span>
+      </div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">담당자분께 꼭 여쭙고 싶은 10가지</h2>
+      <p class="mt-3 text-lg text-slate-300">
+        어려운 판단은 저희가 권장안을 함께 적어두었습니다 · 첫 미팅에서 같이 정리해 드릴 수도 있습니다
+      </p>
+    </div>
+
+    <div class="rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 overflow-hidden" id="questions-accordion">
+
+      <details class="accordion-item" open>
+        <summary>
+          <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-500/20 text-red-300 shrink-0">꼭 먼저</span>
+          <span class="flex-1 text-sm font-medium">배정을 하루에 몇 번 처리하면 될까요?</span>
+        </summary>
+        <div class="accordion-body">
+          <p>신청이 들어오자마자 1건씩 배정하면, 근처의 다른 신청과 "묶어서" 배정하기 어렵습니다.</p>
+          <div class="mt-3 space-y-2">
+            <div class="rounded-lg p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-200">A. 하루 1~2번 모아서 한꺼번에 — 묶음이 잘 만들어지고 가장 안정적입니다 <span class="text-xs">(권장)</span></div>
+            <div class="rounded-lg p-3 bg-white/5 border border-white/10">B. 몇 시간 안에 빠르게 — 반영은 빨라지고 묶음은 다소 손해입니다</div>
+            <div class="rounded-lg p-3 bg-white/5 border border-white/10">C. 즉시 1건씩 — "묶어 배정"과 양립이 어려워 협의가 필요합니다</div>
+          </div>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>
+          <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-500/20 text-red-300 shrink-0">꼭 먼저</span>
+          <span class="flex-1 text-sm font-medium">기업들을 묶는 기준은 무엇이 좋을까요?</span>
+        </summary>
+        <div class="accordion-body">
+          <div class="space-y-2">
+            <div class="rounded-lg p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-200">A. 거리 기준 (예: 반경 5km 이내) — 기준을 숫자로 조정하기 쉽습니다 <span class="text-xs">(권장)</span></div>
+            <div class="rounded-lg p-3 bg-white/5 border border-white/10">B. 같은 시·군이면 묶음 — 행정 경계에 걸친 이웃 기업을 놓칠 수 있습니다</div>
+            <div class="rounded-lg p-3 bg-white/5 border border-white/10">C. 차로 이동하는 시간 기준 — 지도 서비스 이용료가 계속 발생해 월 운영비가 늘 수 있습니다</div>
+          </div>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>
+          <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-500/20 text-red-300 shrink-0">꼭 먼저</span>
+          <span class="flex-1 text-sm font-medium">전문가별 배정 건수는 매월 새로 계산하면 될까요?</span>
+        </summary>
+        <div class="accordion-body">
+          <p>지금 엑셀도 월별로 관리하고 계신 것으로 이해했습니다.</p>
+          <div class="mt-3 space-y-2">
+            <div class="rounded-lg p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-200">A. 매월 새로 계산 — 지금 업무 방식 그대로 자동화됩니다 <span class="text-xs">(권장)</span></div>
+            <div class="rounded-lg p-3 bg-white/5 border border-white/10">B. 계속 누적해서 계산 — 장기적으론 공평하지만 새로 오신 전문가 처리가 복잡해집니다</div>
+          </div>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>
+          <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-500/20 text-red-300 shrink-0">꼭 먼저</span>
+          <span class="flex-1 text-sm font-medium">같은 도 안에서 건수 차이를 몇 건까지 허용할까요?</span>
+        </summary>
+        <div class="accordion-body">
+          <p>예: 2건 (가장 많은 분과 가장 적은 분의 차이). 숫자가 작을수록 공평해지지만, 이동 거리가 조금 길어질 수 있습니다.</p>
+          <p class="mt-2 text-emerald-300">정확한 숫자는 실제 데이터로 모의 배정을 돌려보며 함께 조정합니다 — 위 "배정 규칙" 섹션의 슬라이더가 그 과정의 축소판입니다.</p>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>
+          <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-500/20 text-red-300 shrink-0">꼭 먼저</span>
+          <span class="flex-1 text-sm font-medium">거리는 지도상 직선 거리로 계산해도 될까요?</span>
+        </summary>
+        <div class="accordion-body">
+          <div class="space-y-2">
+            <div class="rounded-lg p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-200">A. 직선 거리 — 추가 비용이 없고, 이 규모에서는 결과 차이가 미미합니다 <span class="text-xs">(권장)</span></div>
+            <div class="rounded-lg p-3 bg-white/5 border border-white/10">B. 실제 도로 이동 거리 — 지도 서비스 이용료가 발생하고 개발 기간이 3~5일 늘어납니다</div>
+          </div>
+          <p class="mt-2 text-xs text-slate-400">B가 꼭 필요해지셔도 나중에 교체할 수 있는 구조로 만들어 둡니다.</p>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>
+          <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-500/20 text-red-300 shrink-0">꼭 먼저</span>
+          <span class="flex-1 text-sm font-medium">규모 확인 — "하루 60~80건, 전문가 40명"이 지금도 맞나요?</span>
+        </summary>
+        <div class="accordion-body">
+          <p>이전 공고에 있던 수치입니다. 이 규모라면 처리 속도는 전혀 문제가 되지 않고, 좋은 배정 규칙을 찾는 일이 본질입니다.</p>
+          <p class="mt-2 text-amber-300">규모가 크게 다르면 설계를 다시 검토해야 하니, 시작 전에 꼭 확인 부탁드립니다.</p>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>
+          <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-500/20 text-red-300 shrink-0">꼭 먼저</span>
+          <span class="flex-1 text-sm font-medium">기존 시스템의 자료(데이터 구조 문서 등)를 지금 받을 수 있는 상태인가요?</span>
+        </summary>
+        <div class="accordion-body">
+          <p>이전 공고 때 "넘겨받는 중"이라고 하셨습니다. 이 자료가 있어야 개발을 시작할 수 있고, 없으면 시작이 늦어집니다.</p>
+          <p class="mt-2 text-emerald-300">저희는 기존 시스템을 고치지 않는 방식이라, 기존 개발사께는 자료 확인 정도의 협조만 필요합니다.</p>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>
+          <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-500/20 text-red-300 shrink-0">꼭 먼저</span>
+          <span class="flex-1 text-sm font-medium">홈페이지 조회 화면은, 데이터만 넣으면 화면 수정 없이 바로 보이나요?</span>
+        </summary>
+        <div class="accordion-body">
+          <div class="space-y-2">
+            <div class="rounded-lg p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-200">A. 예, 데이터만 넣으면 보입니다 — 가장 좋은 경우입니다</div>
+            <div class="rounded-lg p-3 bg-white/5 border border-white/10">B. 확인 필요 — 개발사와 함께 확인하는 절차를 먼저 잡아야 합니다</div>
+          </div>
+          <p class="mt-2 text-xs text-slate-400">"전문가가 확정 직후 바로 조회한다"는 핵심 약속과 직결되는 질문이라, 계약 전에 확인드리고 싶습니다.</p>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>
+          <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-500/20 text-red-300 shrink-0">꼭 먼저</span>
+          <span class="flex-1 text-sm font-medium">검증 기간을 "2주, 조정 3회"로 정해두면 어떨까요?</span>
+        </summary>
+        <div class="accordion-body">
+          <p>매 조정마다 "무엇이 얼마나 좋아졌는지" 비교표를 드립니다.</p>
+          <p class="mt-2 text-emerald-300">횟수를 정해두면 일정이 늘어지지 않고, 서로 예측 가능해집니다. 규칙이 설정값으로 되어 있어 조정 다음 날 새 결과를 받아보실 수 있습니다.</p>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>
+          <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-500/20 text-red-300 shrink-0">꼭 먼저</span>
+          <span class="flex-1 text-sm font-medium">"법인사업자" 조건은 필수인가요?</span>
+        </summary>
+        <div class="accordion-body">
+          <div class="space-y-2">
+            <div class="rounded-lg p-3 bg-white/5 border border-white/10">A. 필수</div>
+            <div class="rounded-lg p-3 bg-white/5 border border-white/10">B. 역량과 유지보수 계획을 보고 협의 가능</div>
+          </div>
+          <p class="mt-2 text-xs text-slate-400">지원 자격 확인을 위해 여쭤봅니다. 유지보수까지 이어서 맡을 수 있는 계획을 함께 제시드리겠습니다.</p>
+        </div>
+      </details>
+
+    </div>
+
+    <div class="mt-6 flex flex-wrap justify-center gap-2 text-xs">
+      <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">✅ 답변은 각 번호에 A/B/C만 적어주셔도 충분합니다</span>
+      <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">✅ 전체 질의서(22문항)는 미팅 전에 문서로 드립니다</span>
+    </div>
+  </section>
+
+  <!-- =========== RISKS — 미리 대비해 둔 위험들 =========== -->
+  <section id="risks" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="mb-10 scroll-reveal">
+      <div class="inline-flex items-center gap-2 text-xs font-mono text-red-400 mb-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
+        07 · 위험 관리
+        <span class="rounded-full px-2 py-0.5 bg-red-500/20 text-red-300 text-[10px] font-semibold">숨기지 않고 먼저 보여드립니다</span>
+      </div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">잘못될 수 있는 일들과, 그 대비책</h2>
+      <p class="mt-3 text-lg text-slate-300 max-w-3xl">
+        "다 잘될 겁니다"라고 말씀드리지 않겠습니다. 이 프로젝트에서 일이 틀어질 수 있는 지점을
+        12가지로 정리했고, 각각의 예방책을 준비해 두었습니다. <span class="text-red-300">점을 클릭하면 대비책이 열립니다.</span>
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div class="lg:col-span-2 rounded-2xl p-6 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold">위험 지도 — 오른쪽 위일수록 주의</h3>
+          <span class="text-xs text-slate-500">가로: 생기면 타격 · 세로: 생길 가능성</span>
+        </div>
+        <div class="h-96">
+          <canvas id="chart-risks"></canvas>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="rounded-2xl p-5 backdrop-blur-3xl bg-red-500/5 border border-red-500/20">
+          <div class="flex items-center gap-2 text-red-300 text-sm font-semibold mb-2">
+            <i data-lucide="alert-triangle" class="w-4 h-4"></i> 가장 큰 위험
+          </div>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            <b>기존 개발사의 자료 협조가 늦어지는 것</b>입니다. 그래서 처음부터 기존 시스템을
+            고치지 않는 연결 방식을 택해, 필요한 협조를 "자료 확인" 수준으로 줄였습니다.
+          </p>
+        </div>
+        <div class="rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10">
+          <div class="flex items-center gap-2 text-amber-300 text-sm font-semibold mb-2">
+            <i data-lucide="shield-check" class="w-4 h-4"></i> 눈여겨볼 사실
+          </div>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            위험 12개 중 절반 이상이 기술이 아니라 <b>"시작 전 확인"</b>으로 막을 수 있는 것들입니다.
+            그래서 질의서를 계약 전에 먼저 드립니다.
+          </p>
+        </div>
+        <div class="rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10">
+          <div class="flex items-center gap-2 text-emerald-300 text-sm font-semibold mb-2">
+            <i data-lucide="undo-2" class="w-4 h-4"></i> 최후의 안전장치
+          </div>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            검증 승인 전에는 운영을 시작하지 않습니다. 운영 후에도 잘못된 배정은
+            근거 기록과 함께 <b>되돌릴 수</b> 있습니다.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== HOW-IT-WORKS (ARCHITECTURE 간소화) =========== -->
+  <section id="how-it-works" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="mb-10 scroll-reveal">
+      <div class="text-xs font-mono text-cyan-400 mb-3">08 · 동작 방식</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">이렇게 동작합니다</h2>
+      <p class="mt-3 text-lg text-slate-300 max-w-3xl">
+        복잡한 기술은 안쪽에 숨겨두었습니다. 겉에서 보면 이 흐름이 전부입니다 —
+        그리고 <span class="text-cyan-300">기존 시스템은 이 그림 어디에서도 수정되지 않습니다.</span>
+      </p>
+    </div>
+
+    <div class="rounded-3xl p-6 md:p-10 backdrop-blur-3xl bg-white/5 border border-white/10">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-stretch">
+        <div class="relative rounded-2xl p-6 bg-white/5 border border-white/10 text-center spring-hover">
+          <i data-lucide="building-2" class="w-8 h-8 mx-auto text-purple-400"></i>
+          <div class="mt-3 font-semibold">기업이 신청</div>
+          <p class="mt-2 text-xs text-slate-400 leading-relaxed">지금 쓰시는 기존 시스템 그대로, 아무것도 달라지지 않습니다</p>
+          <div class="hidden md:block absolute top-1/2 -right-4 -translate-y-1/2 text-2xl flow-arrow">→</div>
+        </div>
+        <div class="relative rounded-2xl p-6 bg-white/5 border border-white/10 text-center spring-hover">
+          <i data-lucide="eye" class="w-8 h-8 mx-auto text-cyan-400"></i>
+          <div class="mt-3 font-semibold">배정 엔진이 지켜보다 읽어감</div>
+          <p class="mt-2 text-xs text-slate-400 leading-relaxed">기존 시스템을 고치지 않고, 데이터만 정해진 주기로 지켜보는 방식입니다</p>
+          <div class="hidden md:block absolute top-1/2 -right-4 -translate-y-1/2 text-2xl flow-arrow">→</div>
+        </div>
+        <div class="relative rounded-2xl p-6 bg-white/5 border border-white/10 text-center spring-hover">
+          <i data-lucide="brain" class="w-8 h-8 mx-auto text-pink-400"></i>
+          <div class="mt-3 font-semibold">묶고 · 고르고 · 확정</div>
+          <p class="mt-2 text-xs text-slate-400 leading-relaxed">가까운 기업을 묶고, 공평함을 지키며 전문가를 정하고, 근거와 함께 기록합니다</p>
+          <div class="hidden md:block absolute top-1/2 -right-4 -translate-y-1/2 text-2xl flow-arrow">→</div>
+        </div>
+        <div class="rounded-2xl p-6 bg-white/5 border border-white/10 text-center spring-hover">
+          <i data-lucide="monitor-check" class="w-8 h-8 mx-auto text-emerald-400"></i>
+          <div class="mt-3 font-semibold">기존 화면에서 바로 조회</div>
+          <p class="mt-2 text-xs text-slate-400 leading-relaxed">전문가는 늘 보던 홈페이지 화면에서 본인 배정 기업을 확인합니다</p>
+        </div>
+      </div>
+
+      <div class="mt-8 flex flex-wrap justify-center gap-2 text-xs">
+        <span class="rounded-full px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">✅ 기존 시스템 수정 없음</span>
+        <span class="rounded-full px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">✅ 기존 데이터 구조는 건드리지 않고 결과만 기록</span>
+        <span class="rounded-full px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">✅ 같은 건이 두 번 배정되는 일은 세 겹으로 차단</span>
+        <span class="rounded-full px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">✅ 검증 승인 후에만 운영 가동</span>
+      </div>
+
+      <p class="mt-6 text-center text-xs text-slate-500">
+        내부 구조·기술 선택의 상세가 궁금하시면
+        <a href="./it.html#architecture" class="text-cyan-400 hover:text-cyan-300 underline underline-offset-2">IT 담당자용 버전</a>을 참고해 주세요.
+      </p>
+    </div>
+  </section>
+
+  <!-- =========== TIMELINE — 30일 일정 =========== -->
+  <section id="timeline" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="mb-10 scroll-reveal">
+      <div class="text-xs font-mono text-emerald-400 mb-3">09 · 일정</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">30일, 매주 눈으로 확인하며 갑니다</h2>
+      <p class="mt-3 text-lg text-slate-300 max-w-3xl">
+        "다 만들고 보니 기대와 다른" 상황을 막기 위해, 매주 동작하는 결과물을 보여드립니다.
+        발주처가 시간을 내실 일은 <span class="text-emerald-300">첫 주 반나절 + 4주차 1시간씩 3번</span>이 전부입니다.
+      </p>
+    </div>
+
+    <div class="rounded-3xl p-6 md:p-8 backdrop-blur-3xl bg-white/5 border border-white/10 overflow-x-auto">
+      <div class="min-w-[720px]">
+        <!-- 마일스톤 레일 -->
+        <div class="relative h-14 mb-2">
+          <div class="absolute inset-x-0 top-1/2 h-px bg-white/10"></div>
+          <div class="absolute top-1/2 -translate-y-1/2" style="left: 15%">
+            <div class="milestone-marker" title="D5 · 규칙 초기값 서면 합의">1</div>
+            <div class="mt-1 text-[10px] text-slate-500 text-center whitespace-nowrap -translate-x-1/3">규칙 합의</div>
+          </div>
+          <div class="absolute top-1/2 -translate-y-1/2" style="left: 22%">
+            <div class="milestone-marker" title="D7 · 데이터 연결 방식 확인">2</div>
+            <div class="mt-1 text-[10px] text-slate-500 text-center whitespace-nowrap -translate-x-1/3">연결 확인</div>
+          </div>
+          <div class="absolute top-1/2 -translate-y-1/2" style="left: 39%">
+            <div class="milestone-marker" title="D12 · 전체 주소 좌표화 + 이관 예행">3</div>
+            <div class="mt-1 text-[10px] text-slate-500 text-center whitespace-nowrap -translate-x-1/3">좌표화 리포트</div>
+          </div>
+          <div class="absolute top-1/2 -translate-y-1/2" style="left: 59%">
+            <div class="milestone-marker" title="D18 · 배정 엔진 완성·중복 차단 시험 통과">4</div>
+            <div class="mt-1 text-[10px] text-slate-500 text-center whitespace-nowrap -translate-x-1/3">엔진 시연</div>
+          </div>
+          <div class="absolute top-1/2 -translate-y-1/2" style="left: 82%">
+            <div class="milestone-marker" title="D25 · 조정 3회 리포트 · 발주처 승인">5</div>
+            <div class="mt-1 text-[10px] text-slate-500 text-center whitespace-nowrap -translate-x-1/3">검증 승인</div>
+          </div>
+          <div class="absolute top-1/2 -translate-y-1/2" style="left: 97%">
+            <div class="milestone-marker" title="D30 · 운영 첫 배정 + 산출물 인계">6</div>
+            <div class="mt-1 text-[10px] text-slate-500 text-center whitespace-nowrap -translate-x-2/3">운영 시작</div>
+          </div>
+        </div>
+
+        <!-- 주차 바 -->
+        <div class="space-y-3 mt-8">
+          <div class="grid grid-cols-[64px_1fr] items-center gap-3">
+            <div class="text-xs text-slate-400 font-mono">W1</div>
+            <div class="relative h-7">
+              <div class="gantt-bar gantt-bar-p1 absolute" style="left: 0%; width: 23%" title="규칙 정하기 워크숍(반나절) · 기존 자료 분석 · 개발 시작">
+                <span class="absolute inset-0 flex items-center px-3 text-xs font-medium">규칙 정하기 · 자료 분석</span>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-[64px_1fr] items-center gap-3">
+            <div class="text-xs text-slate-400 font-mono">W2</div>
+            <div class="relative h-7">
+              <div class="gantt-bar gantt-bar-p2 absolute" style="left: 23%; width: 24%" title="주소 좌표화 완성 · 엑셀 실적 옮기기 예행 — 좌표화 리포트 확인">
+                <span class="absolute inset-0 flex items-center px-3 text-xs font-medium">주소 정리 · 엑셀 이관</span>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-[64px_1fr] items-center gap-3">
+            <div class="text-xs text-slate-400 font-mono">W3</div>
+            <div class="relative h-7">
+              <div class="gantt-bar gantt-bar-p3 absolute" style="left: 47%; width: 23%" title="묶음·전문가 선정·확정·되돌리기 개발 — 배정 엔진 시연">
+                <span class="absolute inset-0 flex items-center px-3 text-xs font-medium">배정 엔진 만들기</span>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-[64px_1fr] items-center gap-3">
+            <div class="text-xs text-slate-400 font-mono">W4</div>
+            <div class="relative h-7">
+              <div class="gantt-bar gantt-bar-p4 absolute" style="left: 70%; width: 23%" title="모의 배정 검증 · 조정 3회 (회당 1시간 내외) · 배포 준비">
+                <span class="absolute inset-0 flex items-center px-3 text-xs font-medium">검증 · 조정 3회</span>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-[64px_1fr] items-center gap-3">
+            <div class="text-xs text-slate-400 font-mono">W5</div>
+            <div class="relative h-7">
+              <div class="gantt-bar gantt-bar-p1 absolute" style="left: 93%; width: 7%" title="D29~30 · 운영 전환 · 첫 자동 배정 · 산출물 인계">
+                <span class="absolute inset-0 flex items-center px-2 text-xs font-medium">가동</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 발주처 확인 포인트 -->
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="text-xs text-emerald-400 font-semibold mb-1">2주차 말 · 눈으로 확인 1</div>
+        <p class="text-sm text-slate-300 leading-relaxed">실제 데이터 전체의 <b>주소 좌표화 리포트</b> — 몇 건이 변환됐고 몇 건이 보정 대상인지 숫자로 보십니다</p>
+      </div>
+      <div class="rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="text-xs text-emerald-400 font-semibold mb-1">3주차 말 · 눈으로 확인 2</div>
+        <p class="text-sm text-slate-300 leading-relaxed"><b>배정 엔진 시연</b> — 실제 데이터가 묶이고 배정되는 과정을 직접 확인하십니다</p>
+      </div>
+      <div class="rounded-2xl p-5 backdrop-blur-3xl bg-white/5 border border-white/10">
+        <div class="text-xs text-emerald-400 font-semibold mb-1">4주차 · 눈으로 확인 3</div>
+        <p class="text-sm text-slate-300 leading-relaxed"><b>회차별 모의 배정 리포트 3회</b> — 규칙을 조정하며 최종 확정하고, 승인 후에만 가동합니다</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== WHY-US =========== -->
+  <section id="why-us" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="mb-10 scroll-reveal">
+      <div class="text-xs font-mono text-purple-400 mb-3">10 · 왜 저희인가</div>
+      <h2 class="text-4xl md:text-5xl font-bold leading-tight">일반적인 진행과 무엇이 다른가</h2>
+      <p class="mt-3 text-lg text-slate-300">경력 22년 · 수행 32건 이상 · 이번 프로젝트와 같은 구도의 경험 중심으로 말씀드립니다</p>
+    </div>
+
+    <div class="rounded-2xl backdrop-blur-3xl bg-white/5 border border-white/10 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-slate-400 border-b border-white/10">
+              <th class="px-6 py-4 w-[40%]">항목</th>
+              <th class="px-4 py-4 w-[30%] text-purple-300">이번 제안</th>
+              <th class="px-4 py-4 w-[30%]">일반적인 진행</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-white/5 hover:bg-white/5 transition">
+              <td class="px-6 py-4 font-medium">사전 분석</td>
+              <td class="px-4 py-4 text-emerald-300"><span class="mr-1">✓</span>이전 공고(157444)까지 비교 분석 완료 — 재공고 배경·규모까지 파악하고 지원</td>
+              <td class="px-4 py-4 text-slate-500"><span class="mr-1">✕</span>공고 요약 수준의 재해석</td>
+            </tr>
+            <tr class="border-b border-white/5 hover:bg-white/5 transition">
+              <td class="px-6 py-4 font-medium">설계 준비</td>
+              <td class="px-4 py-4 text-emerald-300"><span class="mr-1">✓</span>업무 흐름·데이터 구조·프로그램 구조 설계를 마친 상태로 착수 — 30일을 개발·검증에 사용</td>
+              <td class="px-4 py-4 text-slate-500"><span class="mr-1">✕</span>착수 후 분석부터 시작</td>
+            </tr>
+            <tr class="border-b border-white/5 hover:bg-white/5 transition">
+              <td class="px-6 py-4 font-medium">진행 확인</td>
+              <td class="px-4 py-4 text-emerald-300"><span class="mr-1">✓</span>매주 동작하는 결과물 확인 — 리포트·시연 3회 포함</td>
+              <td class="px-4 py-4 text-slate-500"><span class="mr-1">✕</span>중간 산출물 없이 마지막에 일괄 확인</td>
+            </tr>
+            <tr class="border-b border-white/5 hover:bg-white/5 transition">
+              <td class="px-6 py-4 font-medium">기존 시스템 연결</td>
+              <td class="px-4 py-4 text-emerald-300"><span class="mr-1">✓</span>기존 코드를 수정하지 않음 — 기존 개발사는 자료 확인만 지원하면 되므로 일정 지연 위험을 줄입니다.</td>
+              <td class="px-4 py-4 text-slate-500"><span class="mr-1">✕</span>기존 시스템 수정을 전제 — 외부 협조 지연이 일정을 위협</td>
+            </tr>
+            <tr class="border-b border-white/5 hover:bg-white/5 transition">
+              <td class="px-6 py-4 font-medium">규칙 검증</td>
+              <td class="px-4 py-4 text-emerald-300"><span class="mr-1">✓</span>모의 배정 비교표로 검증 2주·조정 3회 — 다음 날 새 결과 확인</td>
+              <td class="px-4 py-4 text-slate-500"><span class="mr-1">✕</span>몇 건 눈으로 훑어보는 검증, 조정 기준 없음</td>
+            </tr>
+            <tr class="hover:bg-white/5 transition">
+              <td class="px-6 py-4 font-medium">같은 구도의 경험</td>
+              <td class="px-4 py-4 text-emerald-300"><span class="mr-1">✓</span>금융권 수준 시스템에서 "운영 중인 회사 DB에 직접 기록하는" 업무를 수행 — 기존 화면이 깨지지 않게 지키는 일이 일상이었습니다</td>
+              <td class="px-4 py-4 text-slate-500"><span class="mr-1">✕</span>신규 구축 경험 위주</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="mt-6 flex flex-wrap justify-center gap-2 text-xs">
+      <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">✅ 경력 22년 백엔드 전문가</span>
+      <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">✅ 매주 서면 보고 + 필요 시 30분 통화</span>
+      <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">✅ 운영 가이드·인수인계 문서 포함 인계</span>
+      <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">✅ 추후 유지보수 협의 가능</span>
+    </div>
+  </section>
+
+  <!-- =========== CTA =========== -->
+  <section id="cta" class="max-w-7xl mx-auto px-6 py-20 md:py-32">
+    <div class="rounded-3xl p-8 md:p-14 backdrop-blur-3xl bg-gradient-to-br from-purple-500/15 via-pink-500/10 to-emerald-500/10 border border-purple-500/20 text-center relative overflow-hidden">
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 -mt-24 w-96 h-96 rounded-full bg-purple-500/10 blur-3xl"></div>
+      <div class="relative max-w-3xl mx-auto">
+        <h2 class="text-3xl md:text-5xl font-bold leading-tight">
+          궁금한 점, 편하게 물어봐 주세요
+        </h2>
+        <p class="mt-5 text-lg text-slate-300 leading-relaxed">
+          담당자의 지도 검색과 엑셀 대조 업무를 줄이고, 모든 배정에 근거가 남는 시스템입니다.
+          충분한 검증을 거친 후에만 운영을 시작하며, 착수 시점과 계약 조건은 협의해 결정하겠습니다.
+          위 질문 10가지에 A/B만 적어주셔도 대화가 훨씬 빨라집니다.
+        </p>
+
+        <div class="mt-8 flex flex-wrap justify-center items-center gap-3">
+          <a href="proto/index.html" class="inline-flex items-center gap-2 rounded-xl px-6 py-3.5 font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/25 transition">
+            라이브 데모 체험 →
+          </a>
+          <a href="demo/자동시연.html" class="inline-flex items-center gap-2 rounded-xl px-6 py-3.5 font-semibold bg-purple-500/15 border border-purple-500/30 text-purple-200 hover:bg-purple-500/25 transition">
+            1분 30초 자동 시연 →
+          </a>
+          <a href="#questions" class="rounded-xl px-6 py-3.5 font-semibold bg-white/5 border border-white/10 hover:bg-white/10 transition">
+            질문 목록 다시 보기
+          </a>
+        </div>
+
+        <div class="mt-8 flex flex-wrap justify-center gap-2 text-xs">
+          <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">🤝 위시켓을 통한 안전한 계약·대금 보호</span>
+          <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">📋 검수 기준 6가지를 서면으로 미리 고정</span>
+          <span class="rounded-full px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300">🔁 검증 2주·조정 3회는 계약 범위에 포함</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========== CMD+K MODAL =========== -->
+  <div id="cmdk-backdrop" class="fixed inset-0 z-20 bg-slate-950/70 backdrop-blur-sm hidden" aria-hidden="true"></div>
+
+  <div id="cmdk-modal" class="fixed inset-0 z-20 hidden items-start justify-center pt-24 px-4" role="dialog" aria-modal="true">
+    <div class="w-full max-w-xl rounded-2xl backdrop-blur-3xl bg-slate-900/95 border border-white/20 shadow-2xl shadow-purple-500/20 overflow-hidden">
+      <div class="flex items-center gap-3 p-4 border-b border-white/10">
+        <i data-lucide="search" class="w-5 h-5 text-slate-400"></i>
+        <input type="text" id="cmdk-input" placeholder="섹션 이동 또는 검색…" class="bg-transparent flex-1 outline-none text-sm" />
+        <kbd class="font-mono text-xs px-2 py-1 rounded bg-white/10 text-slate-400">ESC</kbd>
+      </div>
+
+      <ul class="max-h-80 overflow-y-auto p-2" id="cmdk-list">
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#core">
+          <i data-lucide="workflow" class="w-4 h-4 text-purple-400"></i>
+          <span class="flex-1 text-sm">자동 배정 — 5단계 동작</span>
+          <span class="text-xs text-slate-500">01</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#portfolio">
+          <i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-400"></i>
+          <span class="flex-1 text-sm">배정 현황판 — 균등·부하</span>
+          <span class="text-xs text-slate-500">02</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#engine">
+          <i data-lucide="target" class="w-4 h-4 text-pink-400"></i>
+          <span class="flex-1 text-sm">배정 규칙 — 공평함과 거리</span>
+          <span class="text-xs text-slate-500">03</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#operator">
+          <i data-lucide="layout-dashboard" class="w-4 h-4 text-cyan-400"></i>
+          <span class="flex-1 text-sm">관리 화면 6종 — 선택 도입</span>
+          <span class="text-xs text-slate-500">04</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#insights">
+          <i data-lucide="lightbulb" class="w-4 h-4 text-amber-400"></i>
+          <span class="flex-1 text-sm">함께 정할 것 3가지</span>
+          <span class="text-xs text-slate-500">05</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#questions">
+          <i data-lucide="help-circle" class="w-4 h-4 text-purple-400"></i>
+          <span class="flex-1 text-sm">여쭙고 싶은 질문 10가지</span>
+          <span class="text-xs text-slate-500">06</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#risks">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400"></i>
+          <span class="flex-1 text-sm">위험과 대비책</span>
+          <span class="text-xs text-slate-500">07</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#how-it-works">
+          <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+          <span class="flex-1 text-sm">이렇게 동작합니다</span>
+          <span class="text-xs text-slate-500">08</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#timeline">
+          <i data-lucide="calendar" class="w-4 h-4 text-emerald-400"></i>
+          <span class="flex-1 text-sm">30일 일정</span>
+          <span class="text-xs text-slate-500">09</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#why-us">
+          <i data-lucide="award" class="w-4 h-4 text-purple-400"></i>
+          <span class="flex-1 text-sm">왜 저희인가 — 비교</span>
+          <span class="text-xs text-slate-500">10</span>
+        </li>
+        <li class="cmdk-item flex items-center gap-3 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-white/5" data-target="#cta">
+          <i data-lucide="message-circle" class="w-4 h-4 text-pink-400"></i>
+          <span class="flex-1 text-sm">문의·데모 안내</span>
+          <span class="text-xs text-slate-500">11</span>
+        </li>
+      </ul>
+
+      <div class="flex items-center justify-between px-4 py-2 border-t border-white/10 text-xs text-slate-500">
+        <span>↑↓ 이동</span>
+        <span>↵ 선택</span>
+        <span>ESC 닫기</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========== SIDE PANEL =========== -->
+  <aside id="side-panel" class="fixed right-0 top-0 h-screen w-96 max-w-[90vw] translate-x-full transition-transform duration-300 z-30 backdrop-blur-3xl bg-slate-900/95 border-l border-white/10 shadow-2xl shadow-purple-500/20 overflow-y-auto">
+    <div class="flex items-center justify-between p-4 border-b border-white/10">
+      <div class="flex items-center gap-2">
+        <i data-lucide="sparkles" class="w-4 h-4 text-purple-400"></i>
+        <span class="font-semibold text-sm" id="side-panel-title">상세</span>
+      </div>
+      <button id="side-panel-close" class="p-1.5 rounded-lg hover:bg-white/10" aria-label="닫기">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div id="side-panel-body" class="p-6">
+      <!-- Dynamically populated -->
+    </div>
+  </aside>
+
+  <!-- =========== FOOTER =========== -->
+  <footer class="border-t border-white/10 mt-20 py-10 text-center text-sm text-slate-500">
+    <div class="max-w-7xl mx-auto px-6">
+      <p>
+        이 페이지는 위시켓 프로젝트 <span class="font-mono text-purple-400">#157617</span> 지원용 레퍼런스 UI입니다.
+        실제 서비스가 아니며, 기업명·성명·수치는 모두 가상의 모의 데이터입니다.
+      </p>
+      <p class="mt-2">
+        Generated by <span class="font-mono">wishket-refui</span> · Last updated: 2026-08-16
+        · <a href="./it.html" class="text-purple-400 hover:text-purple-300 underline underline-offset-2">IT 담당자용 버전</a>
+        · <a href="../index.html" class="text-purple-400 hover:text-purple-300 underline underline-offset-2">전체 보기</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- 페이지 데이터 (client.js가 읽는 전역 훅) -->
+  <script>
+    window.REFUI_DATA = {
+      // 리스크 산점도 — 6_리스크분석 §1 매트릭스 기반 (좌표는 겹침 방지용 미세 조정)
+      // 해설은 비IT: 비즈니스 영향 중심
+      risks: [
+        { id: 'R1',  name: '기존 개발사 자료 협조 지연',        impact: 3,    prob: 3,    score: 9, strategy: '가장 큰 위험으로 보고 있습니다. 기존 시스템을 고치지 않는 연결 방식으로 협조 필요를 "자료 확인" 수준까지 줄였고, "자료 제공일 = 시작일"을 계약서에 명시해 기다리는 날이 기간에서 빠지지 않게 합니다.' },
+        { id: 'R2',  name: '배정 규칙 확정이 늦어짐',           impact: 1.85, prob: 3.1,  score: 6, strategy: '질문지를 계약 전에 미리 드려 첫 미팅을 "결정 확인" 자리로 만듭니다. 규칙과 무관한 작업(주소 정리·엑셀 이관)을 먼저 진행해 기다리는 공백을 없앱니다.' },
+        { id: 'R7',  name: '예산 협의의 간극',                 impact: 2.0,  prob: 2.9,  score: 6, strategy: '기본 범위(800만원)와 선택 항목(도로 거리·하루 한도 등)을 금액과 함께 나눈 견적을 드립니다 — 나중에 "이것도 포함이었나요?"가 생기지 않게 합니다.' },
+        { id: 'R8',  name: '주소 데이터 상태가 나쁠 가능성',     impact: 2.15, prob: 3.05, score: 6, strategy: '첫 주에 전체 주소를 좌표로 바꿔보고 실패율 리포트를 바로 공유합니다 — 문제가 있다면 숫자로 먼저 보여드리고 함께 기대치를 조정합니다.' },
+        { id: 'R3',  name: '규칙 조정이 끝없이 반복됨',         impact: 2.85, prob: 1.9,  score: 6, strategy: '검증 2주·조정 3회를 서면으로 합의하고, 회차마다 "무엇이 좋아졌는지" 비교표를 드립니다. 3회로 부족하면 원인을 정리해 추가 범위를 협의합니다.' },
+        { id: 'R4',  name: '기존 조회 화면에 바로 안 보일 가능성', impact: 3.0,  prob: 2.1,  score: 6, strategy: '계약 전에 "데이터만 넣으면 화면 수정 없이 보이는지"를 확인 질문으로 드리고, 3주차에 연습 환경에서 기록→조회를 실제로 시험합니다.' },
+        { id: 'R10', name: '배정 시점 결정이 미뤄짐',           impact: 3.15, prob: 1.95, score: 6, strategy: '"하루 1~2번 모아서 배정"을 기본안으로 계약 전에 정해두자고 제안드립니다 — 이 결정이 전체 구조를 좌우하기 때문입니다.' },
+        { id: 'R15', name: '잘못된 배정이 전문가에게 노출',      impact: 2.7,  prob: 2.05, score: 6, strategy: '검증 승인 전에는 운영을 시작하지 않습니다. 운영 후에도 되돌리기와 근거 기록이 있어 빠르게 바로잡을 수 있습니다.' },
+        { id: 'R13', name: '엑셀 실적 데이터의 오류',           impact: 1.9,  prob: 2.1,  score: 4, strategy: '실제 반영 전에 예행 이관으로 합계를 대조하고, 오류가 하나라도 있으면 전체를 반영하지 않습니다. 오류 목록은 담당자분이 확인하시게 정리해 드립니다.' },
+        { id: 'R18', name: '검수 기준이 모호해 대금이 늦어짐',   impact: 2.1,  prob: 1.9,  score: 4, strategy: '완료 기준(운영 첫 배정 성공 + 기존 화면 조회 확인 + 산출물 인계)을 서면으로 미리 고정하고, 위시켓 대금 보호 절차를 따릅니다.' },
+        { id: 'R9',  name: '주소의 개인정보 처리 제약',         impact: 2.0,  prob: 2.0,  score: 4, strategy: '전문가 주소가 자택 주소인지, 외부 좌표 변환에 규정상 문제가 없는지 계약 전에 확인드립니다. 필요하면 서류 절차를 함께 준비합니다 (비용 추가 없음).' },
+        { id: 'R16', name: '회사 데이터베이스의 버전 제약',      impact: 2.0,  prob: 1.0,  score: 2, strategy: '가능성은 낮지만, 구버전이어도 동작하는 대체 설계를 미리 갖고 있습니다.' }
+      ]
+    };
+  </script>
+
+  <script src="./client.js"></script>
+  <script>
+    // ===== 페이지 전용 스크립트 (client.js의 전역 훅과 충돌하지 않는 별도 ID 사용) =====
+
+    // 1) 전문가별 당월 배정 막대 차트
+    (function () {
+      function draw() {
+        var el = document.getElementById('chart-experts');
+        if (typeof Chart === 'undefined' || !el) return;
+        new Chart(el, {
+          type: 'bar',
+          data: {
+            labels: ['김OO', '이OO', '최OO', '정OO', '한OO'],
+            datasets: [{
+              label: '이번 달 배정 건수',
+              data: [12, 11, 13, 11, 12],
+              backgroundColor: ['rgba(16,185,129,0.55)', 'rgba(16,185,129,0.55)', 'rgba(239,68,68,0.6)', 'rgba(16,185,129,0.55)', 'rgba(245,158,11,0.55)'],
+              borderRadius: 6,
+              maxBarThickness: 36
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(2,6,23,0.95)', borderColor: 'rgba(168,85,247,0.3)', borderWidth: 1, padding: 12,
+                callbacks: { label: function (ctx) { return ctx.parsed.y + '건 (허용 편차 2건 기준)'; } }
+              }
+            },
+            scales: {
+              x: { grid: { display: false } },
+              y: { beginAtZero: true, suggestedMax: 15, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { stepSize: 5 } }
+            }
+          }
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', draw);
+      } else {
+        draw();
+      }
+    })();
+
+    // 2) ROI 계산기 — 하루 신청 건수 → 월/연 절감 시간 (건당 6분 · 월 22일 근무 가정)
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      var slider = $('calc-daily'), disp = $('calc-daily-display'), monthly = $('calc-monthly'), yearly = $('calc-yearly');
+      if (!slider) return;
+      function update() {
+        var n = +slider.value;
+        var monthlyHours = Math.round(n * 6 * 22 / 60);
+        disp.textContent = n + '건';
+        monthly.textContent = monthlyHours.toLocaleString('ko-KR');
+        yearly.textContent = (monthlyHours * 12).toLocaleString('ko-KR');
+      }
+      slider.addEventListener('input', update);
+      update();
+    })();
+
+    // 3) 배정 규칙 시뮬레이터 — 허용 편차 슬라이더 (모의 수치)
+    (function () {
+      var slider = document.getElementById('sim-dev');
+      if (!slider) return;
+      var $ = function (id) { return document.getElementById(id); };
+      var disp = $('sim-dev-display'), dist = $('sim-dist'), wait = $('sim-wait'), match = $('sim-match'), comment = $('sim-comment');
+      var SIM = {
+        1: { dist: '8.1', wait: 9, match: 81, note: '가장 공평하지만, 이동 거리가 길어지고 배정하지 못해 대기로 남는 건이 늘어납니다.' },
+        2: { dist: '6.2', wait: 3, match: 87, note: '균형 잡힌 기본안입니다. 지금 엑셀로 관리하시는 감각과 가장 가깝습니다.' },
+        3: { dist: '5.6', wait: 1, match: 84, note: '이동 거리가 짧아지는 대신, 건수 차이가 조금 더 벌어질 수 있습니다.' },
+        4: { dist: '5.2', wait: 0, match: 82, note: '거리 위주 배정에 가까워집니다. 특정 전문가에게 몰릴 가능성이 커집니다.' }
+      };
+      function update() {
+        var v = +slider.value;
+        var d = SIM[v];
+        disp.textContent = v + '건';
+        dist.textContent = d.dist;
+        wait.textContent = d.wait;
+        match.textContent = d.match;
+        comment.textContent = d.note;
+      }
+      slider.addEventListener('input', update);
+      update();
+    })();
+  </script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>
